@@ -830,3 +830,30 @@ run_test_with_timeout() {
       $TEST_COMMAND
   )
 }
+
+run_with_timeout() {
+  local timeout="$1"
+  shift
+  local pidFile="$1"
+  shift
+  local command="$@"
+
+  # invoke command
+  (eval "$command"; rm $pidFile; ) &
+  pid=$!
+  echo $pid > $pidFile
+
+  # invoke timeout guard
+  (
+    sleep $timeout
+    if [[ -e $pidFile ]]; then
+      kill $pid
+      rm $pidFile
+      echo "The command '$command' (pid: $pid) took too much time (>$timeout seconds) to finish and, therefore, was killed."
+    fi
+  ) &
+  killerPid=$!
+
+  wait $pid
+  kill $killerPid &> /dev/null
+}
