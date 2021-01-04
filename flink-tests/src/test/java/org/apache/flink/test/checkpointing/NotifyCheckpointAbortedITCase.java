@@ -196,7 +196,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
     @Test
     public void testNotifyCheckpointAborted1000Times() throws Exception {
-        int totalRunCount = 2000;
+        int totalRunCount = 200000;
         for (int i = 0; i < totalRunCount; i++) {
             setup();
             System.out.println(String.format("Test run %d/%d", i, totalRunCount));
