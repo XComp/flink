@@ -108,7 +108,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "unalignedCheckpointEnabled ={0}")
     public static Collection<Boolean> parameter() {
-        return Arrays.asList(true, false);
+        return Arrays.asList(true);
     }
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -151,7 +151,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
      *
      * <p>The job graph looks like: NormalSource --> keyBy --> NormalMap --> DeclineSink
      */
-    @Test(timeout = TEST_TIMEOUT)
     public void testNotifyCheckpointAborted() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
@@ -193,6 +192,17 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
         clusterClient.cancel(jobID).get();
         log.info("Test is verified successfully as expected.");
+    }
+
+    @Test
+    public void testNotifyCheckpointAborted1000Times() throws Exception {
+        int totalRunCount = 2000;
+        for (int i = 0; i < totalRunCount; i++) {
+            setup();
+            System.out.println(String.format("Test run %d/%d", i, totalRunCount));
+            testNotifyCheckpointAborted();
+            shutdown();
+        }
     }
 
     private void verifyAllOperatorsNotifyAborted() throws InterruptedException {

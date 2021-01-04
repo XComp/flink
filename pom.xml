@@ -1548,6 +1548,7 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.22.1</version>
 				<configuration>
+					<test>org.apache.flink.test.checkpointing.NotifyCheckpointAbortedITCase</test>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
