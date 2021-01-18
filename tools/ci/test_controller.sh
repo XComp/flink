@@ -113,7 +113,12 @@ else
 	fi
 	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
-	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
+  for i in $(seq 1 1000); do
+	  run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE -pl flink-yarn-tests -Dtest=YARNSessionCapacitySchedulerITCase#perJobYarnClusterOffHeap verify" $CALLBACK_ON_TIMEOUT
+	  if [[ "$?" != "0" ]]; then
+	    break
+	  fi
+	done
 	EXIT_CODE=$?
 fi
 
