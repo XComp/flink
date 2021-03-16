@@ -122,7 +122,7 @@ else
 	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
   EXIT_CODE="0"
-  for i in $(seq 1 600); do
+  for i in $(seq 1 2); do
 	  run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify -Dtest=org.apache.flink.api.scala.operators.PartitionITCase" $CALLBACK_ON_TIMEOUT
 	  EXIT_CODE=$?
 	  if [ "${EXIT_CODE}" != "0" ]; then
