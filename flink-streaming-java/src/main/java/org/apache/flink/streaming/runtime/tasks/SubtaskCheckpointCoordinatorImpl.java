@@ -546,6 +546,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Supplier<Boolean> isRunning)
             throws Exception {
 
+        long checkpointId = checkpointMetaData.getCheckpointId();
+        LOG.debug("{} - starting synchronous part of checkpoint {}.", taskName, checkpointId);
+
         for (final StreamOperatorWrapper<?, ?> operatorWrapper :
                 operatorChain.getAllOperators(true)) {
             if (operatorWrapper.isClosed()) {
@@ -558,13 +561,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             }
         }
 
-        long checkpointId = checkpointMetaData.getCheckpointId();
         long started = System.nanoTime();
+        LOG.debug("{} - getAndRemoveWriteResult {}.", taskName, checkpointId);
 
         ChannelStateWriteResult channelStateWriteResult =
                 checkpointOptions.isUnalignedCheckpoint()
                         ? channelStateWriter.getAndRemoveWriteResult(checkpointId)
                         : ChannelStateWriteResult.EMPTY;
+
+        LOG.debug("{} - resolveCheckpointStorageLocation {}.", taskName, checkpointId);
 
         CheckpointStreamFactory storage =
                 checkpointStorage.resolveCheckpointStorageLocation(
@@ -612,9 +617,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             ChannelStateWriteResult channelStateWriteResult,
             CheckpointStreamFactory storage)
             throws Exception {
+        LOG.debug("{} - buildOperatorSnapshotFutures {}.", taskName, op.getOperatorID());
         OperatorSnapshotFutures snapshotInProgress =
                 checkpointStreamOperator(
                         op, checkpointMetaData, checkpointOptions, storage, isRunning);
+        LOG.debug("{} - channel futures {}.", taskName, op.getOperatorID());
         if (op == operatorChain.getMainOperator()) {
             snapshotInProgress.setInputChannelStateFuture(
                     channelStateWriteResult
