@@ -1067,9 +1067,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+        LOG.debug("notifyCheckpointAbortAsync {}", checkpointId);
         return notifyCheckpointOperation(
                 () -> {
+                    LOG.debug("notifyCheckpointAbortAsync#2 {}", checkpointId);
                     resetSynchronousSavepointId(checkpointId, false);
+                    LOG.debug("notifyCheckpointAbortAsync#3 {}", checkpointId);
                     subtaskCheckpointCoordinator.notifyCheckpointAborted(
                             checkpointId, operatorChain, this::isRunning);
                 },

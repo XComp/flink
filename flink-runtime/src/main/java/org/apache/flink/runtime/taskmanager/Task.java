@@ -1352,6 +1352,7 @@ public class Task
                         taskNameWithSubtask,
                         executionId);
             } catch (Throwable t) {
+                LOG.debug("notifyCheckpointAborted", t);
                 if (getExecutionState() == ExecutionState.RUNNING) {
                     // fail task if checkpoint aborted notification failed.
                     failExternally(new RuntimeException("Error while aborting checkpoint", t));

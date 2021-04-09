@@ -1303,9 +1303,14 @@ public class CheckpointCoordinator {
         // send notification of aborted checkpoints asynchronously.
         executor.execute(
                 () -> {
+                    LOG.debug("sendAbortedMessages to {} tasks", tasksToAbort.size());
                     // send the "abort checkpoint" messages to necessary vertices.
                     for (ExecutionVertex ev : tasksToAbort) {
                         Execution ee = ev.getCurrentExecutionAttempt();
+                        LOG.debug(
+                                "sendAbortedMessages to {}; ee is null?={}",
+                                ev.getTaskName(),
+                                ee != null);
                         if (ee != null) {
                             ee.notifyCheckpointAborted(checkpointId, timeStamp);
                         }
