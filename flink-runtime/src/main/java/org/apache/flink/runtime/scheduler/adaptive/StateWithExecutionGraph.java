@@ -66,7 +66,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -308,7 +307,7 @@ abstract class StateWithExecutionGraph implements State {
 
         context.archiveFailure(
                 FailureHandlingResultSnapshot.create(
-                        Optional.ofNullable(failingExecutionVertexId),
+                        failingExecutionVertexId,
                         cause,
                         concurrentVertexIds,
                         System.currentTimeMillis(),
@@ -383,7 +382,8 @@ abstract class StateWithExecutionGraph implements State {
         /**
          * Archive the details of an execution failure for future retrieval and inspection.
          *
-         * @param failureHandlingResultSnapshot
+         * @param failureHandlingResultSnapshot The {@link FailureHandlingResultSnapshot} holding
+         *     the failure information that needs to be archived.
          */
         void archiveFailure(FailureHandlingResultSnapshot failureHandlingResultSnapshot);
     }
