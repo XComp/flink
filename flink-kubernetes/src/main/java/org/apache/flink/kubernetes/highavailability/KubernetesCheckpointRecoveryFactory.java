@@ -71,8 +71,7 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
 
     @Override
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
-            JobID jobID, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
-            throws Exception {
+            JobID jobID, int maxNumberOfCheckpointsToRetain) throws Exception {
 
         final String configMapName = getConfigMapNameFunction.apply(jobID);
         return KubernetesUtils.createCompletedCheckpointStore(
