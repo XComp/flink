@@ -43,7 +43,6 @@ public class SchedulerUtilsTest extends TestLogger {
         final CompletedCheckpointStore completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStore(
                         jobManagerConfig,
-                        getClass().getClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
                         log,
                         new JobID());

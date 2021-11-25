@@ -44,7 +44,6 @@ public final class SchedulerUtils {
     public static CompletedCheckpointStore createCompletedCheckpointStoreIfCheckpointingIsEnabled(
             JobGraph jobGraph,
             Configuration configuration,
-            ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Logger log)
             throws JobExecutionException {
@@ -52,7 +51,7 @@ public final class SchedulerUtils {
         if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
                 return createCompletedCheckpointStore(
-                        configuration, userCodeLoader, checkpointRecoveryFactory, log, jobId);
+                        configuration, checkpointRecoveryFactory, log, jobId);
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId,
@@ -67,7 +66,6 @@ public final class SchedulerUtils {
     @VisibleForTesting
     static CompletedCheckpointStore createCompletedCheckpointStore(
             Configuration jobManagerConfig,
-            ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
             Logger log,
             JobID jobId)
@@ -89,7 +87,7 @@ public final class SchedulerUtils {
         }
 
         return recoveryFactory.createRecoveredCompletedCheckpointStore(
-                jobId, maxNumberOfCheckpointsToRetain, classLoader);
+                jobId, maxNumberOfCheckpointsToRetain);
     }
 
     public static CheckpointIDCounter createCheckpointIDCounterIfCheckpointingIsEnabled(

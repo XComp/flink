@@ -26,8 +26,7 @@ public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFa
 
     @Override
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
-            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
-            throws Exception {
+            JobID jobId, int maxNumberOfCheckpointsToRetain) throws Exception {
 
         return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
     }

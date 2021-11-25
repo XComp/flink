@@ -68,7 +68,7 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
 
     @Override
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
-            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) {
+            JobID jobId, int maxNumberOfCheckpointsToRetain) {
         return store.compute(
                 jobId,
                 (key, previous) ->
