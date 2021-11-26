@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -50,8 +48,8 @@ public final class SchedulerUtils {
         final JobID jobId = jobGraph.getJobID();
         if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
-                return createCompletedCheckpointStore(
-                        configuration, checkpointRecoveryFactory, log, jobId);
+                return checkpointRecoveryFactory.createRecoveredCompletedCheckpointStore(
+                        jobId, configuration, log);
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId,
@@ -61,33 +59,6 @@ public final class SchedulerUtils {
         } else {
             return DeactivatedCheckpointCompletedCheckpointStore.INSTANCE;
         }
-    }
-
-    @VisibleForTesting
-    static CompletedCheckpointStore createCompletedCheckpointStore(
-            Configuration jobManagerConfig,
-            CheckpointRecoveryFactory recoveryFactory,
-            Logger log,
-            JobID jobId)
-            throws Exception {
-        int maxNumberOfCheckpointsToRetain =
-                jobManagerConfig.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
-
-        if (maxNumberOfCheckpointsToRetain <= 0) {
-            // warning and use 1 as the default value if the setting in
-            // state.checkpoints.max-retained-checkpoints is not greater than 0.
-            log.warn(
-                    "The setting for '{} : {}' is invalid. Using default value of {}",
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
-                    maxNumberOfCheckpointsToRetain,
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
-
-            maxNumberOfCheckpointsToRetain =
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
-        }
-
-        return recoveryFactory.createRecoveredCompletedCheckpointStore(
-                jobId, maxNumberOfCheckpointsToRetain);
     }
 
     public static CheckpointIDCounter createCheckpointIDCounterIfCheckpointingIsEnabled(
