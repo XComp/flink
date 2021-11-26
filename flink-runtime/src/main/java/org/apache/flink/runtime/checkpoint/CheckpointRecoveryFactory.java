@@ -19,6 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+
+import org.slf4j.Logger;
 
 /** A factory for per Job checkpoint recovery components. */
 public interface CheckpointRecoveryFactory {
@@ -34,6 +38,39 @@ public interface CheckpointRecoveryFactory {
      */
     CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId, int maxNumberOfCheckpointsToRetain) throws Exception;
+
+    /**
+     * Instantiates the {@link CompletedCheckpointStore} based on the passed {@code Configuration}.
+     *
+     * @param jobId The {@code JobID} for which the {@code CompletedCheckpointStore} shall be
+     *     created.
+     * @param config The {@code Configuration} that shall be used (see {@link
+     *     CheckpointingOptions#MAX_RETAINED_CHECKPOINTS}.
+     * @param logger The logger that shall be used internally.
+     * @return The {@code CompletedCheckpointStore} instance for the given {@code Job}.
+     * @throws Exception if an error occurs while instantiating the {@code
+     *     CompletedCheckpointStore}.
+     */
+    default CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
+            JobID jobId, Configuration config, Logger logger) throws Exception {
+        int maxNumberOfCheckpointsToRetain =
+                config.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
+
+        if (maxNumberOfCheckpointsToRetain <= 0) {
+            // warning and use 1 as the default value if the setting in
+            // state.checkpoints.max-retained-checkpoints is not greater than 0.
+            logger.warn(
+                    "The setting for '{} : {}' is invalid. Using default value of {}",
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
+                    maxNumberOfCheckpointsToRetain,
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
+
+            maxNumberOfCheckpointsToRetain =
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
+        }
+
+        return this.createRecoveredCompletedCheckpointStore(jobId, maxNumberOfCheckpointsToRetain);
+    }
 
     /**
      * Creates a {@link CheckpointIDCounter} instance for a job.
