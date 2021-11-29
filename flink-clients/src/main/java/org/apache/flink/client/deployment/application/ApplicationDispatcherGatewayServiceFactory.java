@@ -98,6 +98,7 @@ public class ApplicationDispatcherGatewayServiceFactory
                             rpcService,
                             fencingToken,
                             recoveredJobs,
+                            globallyTerminatedJobs,
                             (dispatcherGateway, scheduledExecutor, errorHandler) ->
                                     new ApplicationDispatcherBootstrap(
                                             application,
@@ -107,7 +108,7 @@ public class ApplicationDispatcherGatewayServiceFactory
                                             scheduledExecutor,
                                             errorHandler),
                             PartialDispatcherServicesWithJobGraphStore.from(
-                                    partialDispatcherServices, jobGraphWriter));
+                                    partialDispatcherServices, jobGraphWriter, jobResultStore));
         } catch (Exception e) {
             throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
         }

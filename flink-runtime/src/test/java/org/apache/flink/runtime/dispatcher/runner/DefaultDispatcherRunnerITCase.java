@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -246,6 +247,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                 RpcService rpcService,
                 DispatcherId fencingToken,
                 Collection<JobGraph> recoveredJobs,
+                Collection<JobResult> globallyTerminatedJobs,
                 DispatcherBootstrapFactory dispatcherBootstrapFactory,
                 PartialDispatcherServicesWithJobGraphStore
                         partialDispatcherServicesWithJobGraphStore)

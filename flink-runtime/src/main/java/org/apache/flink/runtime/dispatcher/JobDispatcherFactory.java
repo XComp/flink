@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
@@ -38,6 +39,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> globallyTerminatedJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
             throws Exception {
