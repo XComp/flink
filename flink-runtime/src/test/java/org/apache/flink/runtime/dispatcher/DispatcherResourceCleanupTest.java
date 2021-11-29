@@ -223,6 +223,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                 new DispatcherOperationCaches(),
                                 UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                                 jobGraphWriter,
+                                jobResultStore,
                                 jobManagerRunnerFactory,
                                 ForkJoinPool.commonPool()));
 
