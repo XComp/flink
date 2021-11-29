@@ -23,7 +23,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.NoOpDispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
@@ -70,7 +70,7 @@ class DefaultDispatcherGatewayServiceFactory
                             globallyTerminatedJobs,
                             (dispatcherGateway, scheduledExecutor, errorHandler) ->
                                     new NoOpDispatcherBootstrap(),
-                            PartialDispatcherServicesWithJobGraphStore.from(
+                            PartialDispatcherServicesWithJobPersistenceComponents.from(
                                     partialDispatcherServices, jobGraphWriter, jobResultStore));
         } catch (Exception e) {
             throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);

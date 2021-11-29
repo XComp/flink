@@ -34,12 +34,13 @@ import javax.annotation.Nullable;
 import java.util.concurrent.Executor;
 
 /** {@link DispatcherFactory} services container. */
-public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatcherServices {
+public class PartialDispatcherServicesWithJobPersistenceComponents
+        extends PartialDispatcherServices {
 
     @Nonnull private final JobGraphWriter jobGraphWriter;
     private final JobResultStore jobResultStore;
 
-    private PartialDispatcherServicesWithJobGraphStore(
+    private PartialDispatcherServicesWithJobPersistenceComponents(
             @Nonnull Configuration configuration,
             @Nonnull HighAvailabilityServices highAvailabilityServices,
             @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
@@ -80,11 +81,11 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
         return jobResultStore;
     }
 
-    public static PartialDispatcherServicesWithJobGraphStore from(
+    public static PartialDispatcherServicesWithJobPersistenceComponents from(
             PartialDispatcherServices partialDispatcherServices,
             JobGraphWriter jobGraphWriter,
             JobResultStore jobResultStore) {
-        return new PartialDispatcherServicesWithJobGraphStore(
+        return new PartialDispatcherServicesWithJobPersistenceComponents(
                 partialDispatcherServices.getConfiguration(),
                 partialDispatcherServices.getHighAvailabilityServices(),
                 partialDispatcherServices.getResourceManagerGatewayRetriever(),

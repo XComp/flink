@@ -34,6 +34,7 @@ public interface DispatcherFactory {
             Collection<JobGraph> recoveredJobs,
             Collection<JobResult> globallyTerminatedJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
+            PartialDispatcherServicesWithJobPersistenceComponents
+                    partialDispatcherServicesWithJobPersistenceComponents)
             throws Exception;
 }
