@@ -23,6 +23,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -53,6 +54,8 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
     private final JobGraphStore jobGraphStore;
 
+    private final JobResultStore jobResultStore;
+
     private final Executor ioExecutor;
 
     private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
@@ -61,12 +64,14 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
             UUID leaderSessionId,
             DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
             JobGraphStore jobGraphStore,
+            JobResultStore jobResultStore,
             Executor ioExecutor,
             FatalErrorHandler fatalErrorHandler) {
         super(leaderSessionId, fatalErrorHandler);
 
         this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
         this.jobGraphStore = jobGraphStore;
+        this.jobResultStore = jobResultStore;
         this.ioExecutor = ioExecutor;
     }
 
@@ -261,9 +266,15 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
             UUID leaderSessionId,
             DispatcherGatewayServiceFactory dispatcherFactory,
             JobGraphStore jobGraphStore,
+            JobResultStore jobResultStore,
             Executor ioExecutor,
             FatalErrorHandler fatalErrorHandler) {
         return new SessionDispatcherLeaderProcess(
-                leaderSessionId, dispatcherFactory, jobGraphStore, ioExecutor, fatalErrorHandler);
+                leaderSessionId,
+                dispatcherFactory,
+                jobGraphStore,
+                jobResultStore,
+                ioExecutor,
+                fatalErrorHandler);
     }
 }

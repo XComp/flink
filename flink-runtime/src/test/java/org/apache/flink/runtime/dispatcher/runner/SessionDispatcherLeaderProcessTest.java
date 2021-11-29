@@ -22,11 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.ExceptionUtils;
@@ -73,6 +75,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
     private TestingFatalErrorHandler fatalErrorHandler;
 
     private JobGraphStore jobGraphStore;
+    private JobResultStore jobResultStore;
 
     private TestingDispatcherServiceFactory dispatcherServiceFactory;
 
@@ -85,6 +88,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
     public void setup() {
         fatalErrorHandler = new TestingFatalErrorHandler();
         jobGraphStore = TestingJobGraphStore.newBuilder().build();
+        jobResultStore = TestingJobResultStore.builder().build();
         dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder().build();
     }
 
@@ -635,6 +639,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
                 leaderSessionId,
                 dispatcherServiceFactory,
                 jobGraphStore,
+                jobResultStore,
                 ioExecutor,
                 fatalErrorHandler);
     }
