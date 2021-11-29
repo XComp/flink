@@ -24,8 +24,10 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.NoOpDispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -54,7 +56,9 @@ class DefaultDispatcherGatewayServiceFactory
     public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
-            JobGraphWriter jobGraphWriter) {
+            Collection<JobResult> globallyTerminatedJobs,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore) {
 
         final Dispatcher dispatcher;
         try {

@@ -109,7 +109,11 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
         final DispatcherGatewayService dispatcherService =
                 dispatcherGatewayServiceFactory.create(
-                        DispatcherId.fromUuid(getLeaderSessionId()), jobGraphs, jobGraphStore);
+                        DispatcherId.fromUuid(getLeaderSessionId()),
+                        jobGraphs,
+                        globallyTerminatedJobs,
+                        jobGraphStore,
+                        jobResultStore);
 
         completeDispatcherSetup(dispatcherService);
     }

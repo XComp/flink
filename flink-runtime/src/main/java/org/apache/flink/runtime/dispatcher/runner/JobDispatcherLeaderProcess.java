@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.ThrowingJobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -49,7 +50,9 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
                 dispatcherGatewayServiceFactory.create(
                         DispatcherId.fromUuid(getLeaderSessionId()),
                         Collections.singleton(jobGraph),
-                        ThrowingJobGraphWriter.INSTANCE);
+                        Collections.emptyList(),
+                        ThrowingJobGraphWriter.INSTANCE,
+                        new EmbeddedJobResultStore());
 
         completeDispatcherSetup(dispatcherService);
     }

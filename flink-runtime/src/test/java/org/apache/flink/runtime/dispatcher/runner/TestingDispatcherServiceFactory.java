@@ -19,26 +19,33 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
-import org.apache.flink.util.function.TriFunction;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.function.QuintFunction;
 
 import java.util.Collection;
 
 class TestingDispatcherServiceFactory
         implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
-    private final TriFunction<
+
+    private final QuintFunction<
                     DispatcherId,
                     Collection<JobGraph>,
+                    Collection<JobResult>,
                     JobGraphWriter,
+                    JobResultStore,
                     AbstractDispatcherLeaderProcess.DispatcherGatewayService>
             createFunction;
 
     private TestingDispatcherServiceFactory(
-            TriFunction<
+            QuintFunction<
                             DispatcherId,
                             Collection<JobGraph>,
+                            Collection<JobResult>,
                             JobGraphWriter,
+                            JobResultStore,
                             AbstractDispatcherLeaderProcess.DispatcherGatewayService>
                     createFunction) {
         this.createFunction = createFunction;
@@ -48,8 +55,15 @@ class TestingDispatcherServiceFactory
     public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
-            JobGraphWriter jobGraphWriter) {
-        return createFunction.apply(fencingToken, recoveredJobs, jobGraphWriter);
+            Collection<JobResult> globallyTerminatedJobs,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore) {
+        return createFunction.apply(
+                fencingToken,
+                recoveredJobs,
+                globallyTerminatedJobs,
+                jobGraphWriter,
+                jobResultStore);
     }
 
     public static Builder newBuilder() {
@@ -57,22 +71,26 @@ class TestingDispatcherServiceFactory
     }
 
     public static class Builder {
-        private TriFunction<
+        private QuintFunction<
                         DispatcherId,
                         Collection<JobGraph>,
+                        Collection<JobResult>,
                         JobGraphWriter,
+                        JobResultStore,
                         AbstractDispatcherLeaderProcess.DispatcherGatewayService>
                 createFunction =
-                        (ignoredA, ignoredB, ignoredC) ->
+                        (ignoredA, ignoredB, ignoredC, ignoredD, ignoredE) ->
                                 TestingDispatcherGatewayService.newBuilder().build();
 
         private Builder() {}
 
         Builder setCreateFunction(
-                TriFunction<
+                QuintFunction<
                                 DispatcherId,
                                 Collection<JobGraph>,
+                                Collection<JobResult>,
                                 JobGraphWriter,
+                                JobResultStore,
                                 AbstractDispatcherLeaderProcess.DispatcherGatewayService>
                         createFunction) {
             this.createFunction = createFunction;
