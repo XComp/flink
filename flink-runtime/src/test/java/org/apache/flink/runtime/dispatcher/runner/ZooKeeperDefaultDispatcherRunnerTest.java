@@ -35,6 +35,7 @@ import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
@@ -179,7 +180,17 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                     createDispatcherRunner(
                             rpcService,
                             dispatcherLeaderElectionService,
-                            () -> createZooKeeperJobGraphStore(client),
+                            new JobPersistenceComponentFactory() {
+                                @Override
+                                public JobGraphStore createJobGraphStore() {
+                                    return createZooKeeperJobGraphStore(client);
+                                }
+
+                                @Override
+                                public JobResultStore createJobResultStore() {
+                                    return new EmbeddedJobResultStore();
+                                }
+                            },
                             partialDispatcherServices,
                             defaultDispatcherRunnerFactory)) {
 

@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-/** Factory for {@link JobGraphStore}. */
+import org.apache.flink.runtime.highavailability.JobResultStore;
+
+/** Factory for components that are responsible for persisting a job for recovery. */
 public interface JobPersistenceComponentFactory {
 
     /**
@@ -27,4 +29,11 @@ public interface JobPersistenceComponentFactory {
      * @return a {@link JobGraphStore} instance
      */
     JobGraphStore createJobGraphStore();
+
+    /**
+     * Creates {@link JobResultStore} instances.
+     *
+     * @return {@code JobResultStore} instances.
+     */
+    JobResultStore createJobResultStore();
 }

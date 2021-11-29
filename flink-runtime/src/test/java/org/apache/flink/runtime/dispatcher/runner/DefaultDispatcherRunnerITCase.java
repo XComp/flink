@@ -38,10 +38,13 @@ import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -95,6 +98,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
     private JobGraphStore jobGraphStore;
 
+    private JobResultStore jobResultStore;
+
     private PartialDispatcherServices partialDispatcherServices;
 
     private DefaultDispatcherRunnerFactory dispatcherRunnerFactory;
@@ -108,6 +113,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
         dispatcherLeaderElectionService = new TestingLeaderElectionService();
         fatalErrorHandler = new TestingFatalErrorHandler();
         jobGraphStore = TestingJobGraphStore.newBuilder().build();
+        jobResultStore = new EmbeddedJobResultStore();
 
         partialDispatcherServices =
                 new PartialDispatcherServices(
@@ -262,7 +268,17 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElectionService,
                 fatalErrorHandler,
-                () -> jobGraphStore,
+                new JobPersistenceComponentFactory() {
+                    @Override
+                    public JobGraphStore createJobGraphStore() {
+                        return jobGraphStore;
+                    }
+
+                    @Override
+                    public JobResultStore createJobResultStore() {
+                        return jobResultStore;
+                    }
+                },
                 TestingUtils.defaultExecutor(),
                 rpcServiceResource.getTestingRpcService(),
                 partialDispatcherServices);
