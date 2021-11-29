@@ -196,6 +196,7 @@ public class AbstractDispatcherTest extends TestLogger {
                     rpcService,
                     DispatcherId.generate(),
                     initialJobGraphs,
+                    Collections.emptyList(),
                     dispatcherBootstrapFactory,
                     new DispatcherServices(
                             configuration,

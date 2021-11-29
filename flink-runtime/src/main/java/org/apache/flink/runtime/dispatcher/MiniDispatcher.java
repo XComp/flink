@@ -63,6 +63,7 @@ public class MiniDispatcher extends Dispatcher {
                 rpcService,
                 fencingToken,
                 Collections.singleton(jobGraph),
+                Collections.emptyList(),
                 dispatcherBootstrapFactory,
                 dispatcherServices);
 

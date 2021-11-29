@@ -43,6 +43,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
                 rpcService,
                 fencingToken,
                 recoveredJobs,
+                globallyTerminatedJobs,
                 dispatcherBootstrapFactory,
                 DispatcherServices.from(
                         partialDispatcherServicesWithJobPersistenceComponents,

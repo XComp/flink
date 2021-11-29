@@ -256,6 +256,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                     rpcService,
                     fencingToken,
                     recoveredJobs,
+                    globallyTerminatedJobs,
                     dispatcherBootstrapFactory,
                     DispatcherServices.from(
                             partialDispatcherServicesWithJobPersistenceComponents,
