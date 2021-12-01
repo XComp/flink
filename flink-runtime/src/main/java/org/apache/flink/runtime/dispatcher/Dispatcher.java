@@ -824,16 +824,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
      */
     private boolean cleanUpJobGraph(JobID jobId, boolean cleanupHA) {
         if (cleanupHA) {
-            try {
-                jobGraphWriter.removeJobGraph(jobId);
-                return true;
-            } catch (Exception e) {
-                log.warn(
-                        "Could not properly remove job {} from submitted job graph store.",
-                        jobId,
-                        e);
-                return false;
-            }
+            return cleanupJobGraph(jobId);
         }
         try {
             jobGraphWriter.releaseJobGraph(jobId);
@@ -846,21 +837,45 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private void cleanUpRemainingJobData(JobID jobId, boolean jobGraphRemoved) {
         jobManagerMetricGroup.removeJob(jobId);
         if (jobGraphRemoved) {
-            try {
-                highAvailabilityServices.cleanupJobData(jobId);
-            } catch (Exception e) {
-                log.warn(
-                        "Could not properly clean data for job {} stored by ha services", jobId, e);
-            }
+            cleanupHighAvailabilityServices(jobId);
         }
-        blobServer.cleanupJob(jobId, jobGraphRemoved);
+
+        cleanupBlobServer(jobId, jobGraphRemoved);
 
         if (jobGraphRemoved) {
-            try {
-                jobResultStore.markResultAsClean(jobId);
-            } catch (IOException e) {
-                log.warn("Could not properly mark job {} result as clean.", jobId, e);
-            }
+            markJobAsClean(jobId);
+        }
+    }
+
+    private boolean cleanupJobGraph(JobID jobId) {
+        try {
+            jobGraphWriter.removeJobGraph(jobId);
+            return true;
+        } catch (Exception e) {
+            log.warn("Could not properly remove job {} from submitted job graph store.", jobId, e);
+            return false;
+        }
+    }
+
+    private boolean cleanupBlobServer(JobID jobId, boolean jobGraphRemoved) {
+        return blobServer.cleanupJob(jobId, jobGraphRemoved);
+    }
+
+    private boolean cleanupHighAvailabilityServices(JobID jobId) {
+        try {
+            highAvailabilityServices.cleanupJobData(jobId);
+            return true;
+        } catch (Exception e) {
+            log.warn("Could not properly clean data for job {} stored by ha services", jobId, e);
+            return false;
+        }
+    }
+
+    private void markJobAsClean(JobID jobId) {
+        try {
+            jobResultStore.markResultAsClean(jobId);
+        } catch (IOException e) {
+            log.warn("Could not properly mark job {} result as clean.", jobId, e);
         }
     }
 
