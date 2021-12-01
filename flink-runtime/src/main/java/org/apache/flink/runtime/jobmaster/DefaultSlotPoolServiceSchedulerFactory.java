@@ -28,6 +28,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -116,6 +117,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 futureExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
+                new CheckpointsCleaner(),
                 rpcTimeout,
                 blobWriter,
                 jobManagerJobMetricGroup,
