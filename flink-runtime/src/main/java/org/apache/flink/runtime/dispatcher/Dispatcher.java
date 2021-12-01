@@ -231,6 +231,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         }
 
         startRecoveredJobs();
+        cleanupDirtyJobs();
+
         this.dispatcherBootstrap =
                 this.dispatcherBootstrapFactory.create(
                         getSelfGateway(DispatcherGateway.class),
@@ -832,6 +834,37 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             log.warn("Could not properly release job {} from submitted job graph store.", jobId, e);
         }
         return false;
+    }
+
+    private void cleanupDirtyJobs() {
+        for (JobResult jobResult : globallyTerminatedJobs) {
+            cleanupDirtyJobDataAsync(jobResult.getJobId());
+        }
+    }
+
+    private void cleanupDirtyJobDataAsync(JobID jobId) {
+        final List<CompletableFuture<Boolean>> cleanupTaskResults = new ArrayList<>();
+
+        cleanupTaskResults.add(
+                CompletableFuture.supplyAsync(() -> cleanupJobGraph(jobId), ioExecutor));
+
+        cleanupTaskResults.add(
+                CompletableFuture.supplyAsync(
+                        () -> cleanupHighAvailabilityServices(jobId), ioExecutor));
+
+        cleanupTaskResults.add(
+                CompletableFuture.supplyAsync(() -> cleanupBlobServer(jobId, true), ioExecutor));
+
+        FutureUtils.combineAll(cleanupTaskResults)
+                .thenAccept(
+                        cleanupResults -> {
+                            boolean cleanupSuccessful =
+                                    cleanupResults.stream().mapToInt(result -> result ? 0 : 1).sum()
+                                            == 0;
+                            if (cleanupSuccessful) {
+                                markJobAsClean(jobId);
+                            }
+                        });
     }
 
     private void cleanUpRemainingJobData(JobID jobId, boolean jobGraphRemoved) {
