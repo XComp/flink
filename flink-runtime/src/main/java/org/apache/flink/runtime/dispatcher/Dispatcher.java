@@ -836,13 +836,15 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private void cleanUpRemainingJobData(JobID jobId, boolean jobGraphRemoved) {
         jobManagerMetricGroup.removeJob(jobId);
+
+        boolean remainingJobDataCleaned = jobGraphRemoved;
         if (jobGraphRemoved) {
-            cleanupHighAvailabilityServices(jobId);
+            remainingJobDataCleaned = cleanupHighAvailabilityServices(jobId);
         }
 
-        cleanupBlobServer(jobId, jobGraphRemoved);
+        remainingJobDataCleaned &= cleanupBlobServer(jobId, jobGraphRemoved);
 
-        if (jobGraphRemoved) {
+        if (remainingJobDataCleaned) {
             markJobAsClean(jobId);
         }
     }
