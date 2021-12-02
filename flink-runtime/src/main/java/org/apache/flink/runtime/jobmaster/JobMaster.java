@@ -28,6 +28,7 @@ import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -144,6 +145,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     private final Time rpcTimeout;
 
     private final HighAvailabilityServices highAvailabilityServices;
+
+    private final CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
 
     private final BlobWriter blobWriter;
 
@@ -353,6 +356,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         futureExecutor,
                         userCodeLoader,
                         highAvailabilityServices.getCheckpointRecoveryFactory(),
+                        checkpointsCleaner,
                         rpcTimeout,
                         blobWriter,
                         jobManagerJobMetricGroup,
