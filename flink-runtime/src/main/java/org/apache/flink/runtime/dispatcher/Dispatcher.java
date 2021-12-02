@@ -26,7 +26,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -66,6 +68,7 @@ import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -837,16 +840,73 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     private void cleanupDirtyJobs() {
+        CheckpointRecoveryFactory checkpointRecoveryFactory;
+        try {
+            checkpointRecoveryFactory = highAvailabilityServices.getCheckpointRecoveryFactory();
+        } catch (Exception e) {
+            log.warn(
+                    "Cleanup of dirty jobs couldn't be performed due to a failure during CheckpointRecoveryFactory initialization.",
+                    e);
+            return;
+        }
+
+        final CheckpointIDCounterCleanup checkpointIDCounterCleanup =
+                new CheckpointIDCounterCleanup(checkpointRecoveryFactory);
+        final CompletedCheckpointStoreCleanup completedCheckpointStoreCleanup =
+                new CompletedCheckpointStoreCleanup(
+                        new CheckpointsCleaner(),
+                        configuration,
+                        checkpointRecoveryFactory,
+                        SharedStateRegistry.DEFAULT_FACTORY,
+                        ioExecutor);
         for (JobResult jobResult : globallyTerminatedJobs) {
-            cleanupDirtyJobDataAsync(jobResult.getJobId());
+            cleanupDirtyJobDataAsync(
+                    jobResult.getJobId(),
+                    ApplicationStatus.fromApplicationStatus(jobResult.getApplicationStatus()),
+                    checkpointIDCounterCleanup,
+                    completedCheckpointStoreCleanup);
         }
     }
 
-    private void cleanupDirtyJobDataAsync(JobID jobId) {
+    private void cleanupDirtyJobDataAsync(
+            JobID jobId,
+            JobStatus jobStatus,
+            CheckpointIDCounterCleanup checkpointIDCounterCleanup,
+            CompletedCheckpointStoreCleanup completedCheckpointStoreCleanup) {
         final List<CompletableFuture<Boolean>> cleanupTaskResults = new ArrayList<>();
 
         cleanupTaskResults.add(
                 CompletableFuture.supplyAsync(() -> cleanupJobGraph(jobId), ioExecutor));
+
+        cleanupTaskResults.add(
+                CompletableFuture.supplyAsync(
+                        () -> {
+                            try {
+                                checkpointIDCounterCleanup.cleanupJobData(jobId, jobStatus);
+                                return true;
+                            } catch (Exception e) {
+                                log.warn(
+                                        "An error occurred while cleaning up the CheckpointIDCounter for job {}.",
+                                        jobId,
+                                        e);
+                                return false;
+                            }
+                        }));
+
+        cleanupTaskResults.add(
+                CompletableFuture.supplyAsync(
+                        () -> {
+                            try {
+                                completedCheckpointStoreCleanup.cleanupJobData(jobId, jobStatus);
+                                return true;
+                            } catch (Exception e) {
+                                log.warn(
+                                        "An error occurred while cleaning up the CompletedCheckpointStore for job {}.",
+                                        jobId,
+                                        e);
+                                return false;
+                            }
+                        }));
 
         cleanupTaskResults.add(
                 CompletableFuture.supplyAsync(
