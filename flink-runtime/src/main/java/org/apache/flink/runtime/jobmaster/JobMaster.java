@@ -146,7 +146,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private final HighAvailabilityServices highAvailabilityServices;
 
-    private final CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
+    private final CheckpointsCleaner checkpointsCleaner;
 
     private final BlobWriter blobWriter;
 
@@ -284,6 +284,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         this.blobWriter = jobManagerSharedServices.getBlobWriter();
         this.futureExecutor = jobManagerSharedServices.getFutureExecutor();
         this.ioExecutor = jobManagerSharedServices.getIoExecutor();
+        this.checkpointsCleaner = jobManagerSharedServices.getCheckpointsCleaner();
         this.jobCompletionActions = checkNotNull(jobCompletionActions);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.userCodeLoader = checkNotNull(userCodeLoader);

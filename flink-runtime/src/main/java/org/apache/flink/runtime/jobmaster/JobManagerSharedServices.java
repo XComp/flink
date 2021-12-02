@@ -23,6 +23,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -54,6 +55,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JobManagerSharedServices {
 
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(10);
+
+    private final CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
 
     private final ScheduledExecutorService futureExecutor;
 
@@ -98,6 +101,10 @@ public class JobManagerSharedServices {
     @Nonnull
     public BlobWriter getBlobWriter() {
         return blobWriter;
+    }
+
+    public CheckpointsCleaner getCheckpointsCleaner() {
+        return checkpointsCleaner;
     }
 
     /**
