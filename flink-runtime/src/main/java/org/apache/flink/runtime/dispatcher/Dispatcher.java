@@ -439,7 +439,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     public CompletableFuture<Acknowledge> submitFailedJob(
             JobID jobId, String jobName, Throwable exception) {
         final ArchivedExecutionGraph archivedExecutionGraph =
-                ArchivedExecutionGraph.createFromInitializingJob(
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         jobId,
                         jobName,
                         JobStatus.FAILED,

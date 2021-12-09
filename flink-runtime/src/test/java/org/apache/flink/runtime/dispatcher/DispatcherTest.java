@@ -525,7 +525,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         testingJobManagerRunner.completeResultFuture(
                 JobManagerRunnerResult.forInitializationFailure(
                         new ExecutionGraphInfo(
-                                ArchivedExecutionGraph.createFromInitializingJob(
+                                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                                         jobId,
                                         jobGraph.getName(),
                                         JobStatus.FAILED,
@@ -687,7 +687,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         testingJobManagerRunner.completeResultFuture(
                 JobManagerRunnerResult.forInitializationFailure(
                         new ExecutionGraphInfo(
-                                ArchivedExecutionGraph.createFromInitializingJob(
+                                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                                         jobId,
                                         jobGraph.getName(),
                                         JobStatus.FAILED,
@@ -1383,7 +1383,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                             CompletableFuture.completedFuture(
                                                     new ExecutionGraphInfo(
                                                             ArchivedExecutionGraph
-                                                                    .createFromInitializingJob(
+                                                                    .createSparseArchivedExecutionGraph(
                                                                             jobGraph.getJobID(),
                                                                             jobGraph.getName(),
                                                                             JobStatus.RUNNING,
