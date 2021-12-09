@@ -26,16 +26,16 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.HashBiMap;
 /** The status of an application. */
 public enum ApplicationStatus {
 
-    /** Application finished successfully */
+    /** Application finished successfully. */
     SUCCEEDED(0),
 
-    /** Application encountered an unrecoverable failure or error */
+    /** Application encountered an unrecoverable failure or error. */
     FAILED(1443),
 
-    /** Application was canceled or killed on request */
+    /** Application was canceled or killed on request. */
     CANCELED(0),
 
-    /** Application status is not known */
+    /** Application status is not known. */
     UNKNOWN(1445);
 
     // ------------------------------------------------------------------------
@@ -50,15 +50,15 @@ public enum ApplicationStatus {
         JOB_STATUS_APPLICATION_STATUS_BI_MAP.put(JobStatus.FINISHED, ApplicationStatus.SUCCEEDED);
     }
 
-    /** The associated process exit code */
+    /** The associated process exit code. */
     private final int processExitCode;
 
-    private ApplicationStatus(int exitCode) {
+    ApplicationStatus(int exitCode) {
         this.processExitCode = exitCode;
     }
 
     /**
-     * Gets the process exit code associated with this status
+     * Gets the process exit code associated with this status.
      *
      * @return The associated process exit code.
      */
