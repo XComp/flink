@@ -568,9 +568,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                 getMainThreadExecutor());
 
         final CompletableFuture<Void> jobTerminationFuture =
-                cleanupJobStateFuture
-                        .thenApply(cleanupJobState -> removeJob(jobId, cleanupJobState))
-                        .thenCompose(Function.identity());
+                cleanupJobStateFuture.thenCompose(
+                        cleanupJobState -> removeJob(jobId, cleanupJobState));
 
         FutureUtils.handleUncaughtException(
                 jobTerminationFuture,
