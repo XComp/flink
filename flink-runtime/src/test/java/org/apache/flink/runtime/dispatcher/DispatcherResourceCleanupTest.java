@@ -41,15 +41,12 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -87,7 +84,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -139,7 +135,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     private CompletableFuture<JobID> localCleanupFuture;
     private CompletableFuture<JobID> globalCleanupFuture;
     private CompletableFuture<JobID> cleanupJobHADataFuture;
-    private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
 
     @BeforeClass
     public static void setupClass() {
@@ -156,7 +151,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         highAvailabilityServices = new TestingHighAvailabilityServices();
         clearedJobLatch = new OneShotLatch();
         jobResultStore = new SingleJobResultStore(jobId, clearedJobLatch);
-        highAvailabilityServices.setJobResultStore(jobResultStore);
         cleanupJobHADataFuture = new CompletableFuture<>();
         highAvailabilityServices.setGlobalCleanupFuture(cleanupJobHADataFuture);
 
@@ -197,34 +191,16 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     private void startDispatcher(JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
-        TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-        final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-        final MemoryExecutionGraphInfoStore archivedExecutionGraphStore =
-                new MemoryExecutionGraphInfoStore();
         dispatcher =
-                new TestingDispatcher(
-                        rpcService,
-                        DispatcherId.generate(),
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        (dispatcher, scheduledExecutor, errorHandler) ->
-                                new NoOpDispatcherBootstrap(),
-                        new DispatcherServices(
-                                configuration,
-                                highAvailabilityServices,
-                                () -> CompletableFuture.completedFuture(resourceManagerGateway),
-                                blobServer,
-                                heartbeatServices,
-                                archivedExecutionGraphStore,
-                                testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                                VoidHistoryServerArchivist.INSTANCE,
-                                null,
-                                new DispatcherOperationCaches(),
-                                UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-                                jobGraphWriter,
-                                jobResultStore,
-                                jobManagerRunnerFactory,
-                                ForkJoinPool.commonPool()));
+                TestingDispatcher.builder()
+                        .withRpcService(rpcService)
+                        .withHighAvailabilityServices(highAvailabilityServices)
+                        .withJobResultStore(jobResultStore)
+                        .withBlobServer(blobServer)
+                        .withFatalErrorHandler(
+                                testingFatalErrorHandlerResource.getFatalErrorHandler())
+                        .withJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .build();
 
         dispatcher.start();
 
@@ -235,6 +211,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     public void teardown() throws Exception {
         if (dispatcher != null) {
             dispatcher.close();
+        }
+
+        if (blobServer != null) {
+            blobServer.close();
         }
     }
 
@@ -658,7 +638,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                     throw new IOException("Expected IOException.");
                                 })
                         .build();
-        highAvailabilityServices.setJobResultStore(jobResultStore);
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
@@ -692,7 +671,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                     throw new IOException("Expected IOException.");
                                 })
                         .build();
-        highAvailabilityServices.setJobResultStore(jobResultStore);
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
