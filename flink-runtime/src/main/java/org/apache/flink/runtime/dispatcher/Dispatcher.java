@@ -32,6 +32,9 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleaner;
+import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -148,6 +151,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private final DispatcherCachedOperationsHandler dispatcherCachedOperationsHandler;
 
+    private final ResourceCleaner localResourceCleaner;
+    private final ResourceCleaner globalResourceCleaner;
+
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
         SUBMISSION,
@@ -202,7 +208,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 dispatcherServices.getJobManagerRunnerFactory(),
                 dispatcherBootstrapFactory,
                 dispatcherServices.getOperationCaches(),
-                jobManagerRunnerRegistry);
+                jobManagerRunnerRegistry,
+                new DispatcherResourceCleanerFactory(jobManagerRunnerRegistry, dispatcherServices));
     }
 
     private Dispatcher(
@@ -226,7 +233,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             JobManagerRunnerFactory jobManagerRunnerFactory,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherOperationCaches dispatcherOperationCaches,
-            JobManagerRunnerRegistry jobManagerRunnerRegistry)
+            JobManagerRunnerRegistry jobManagerRunnerRegistry,
+            ResourceCleanerFactory resourceCleanerFactory)
             throws Exception {
         super(rpcService, RpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
         assertRecoveredJobsAndDirtyJobResults(recoveredJobs, recoveredDirtyJobs);
@@ -271,6 +279,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         checkNotNull(dispatcherOperationCaches),
                         this::triggerSavepointAndGetLocation,
                         this::stopWithSavepointAndGetLocation);
+
+        this.localResourceCleaner = resourceCleanerFactory.createLocalResourceCleaner();
+        this.globalResourceCleaner = resourceCleanerFactory.createGlobalResourceCleaner();
     }
 
     // ------------------------------------------------------
@@ -496,7 +507,16 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         return persistAndRunFuture.handleAsync(
                 (acknowledge, throwable) -> {
                     if (throwable != null) {
-                        cleanUpHighAvailabilityJobData(jobGraph.getJobID());
+                        globalResourceCleaner
+                                .cleanupAsync(jobGraph.getJobID())
+                                .exceptionally(
+                                        t -> {
+                                            log.warn(
+                                                    "Cleanup didn't succeed after job submission failed for job "
+                                                            + jobGraph.getJobID(),
+                                                    t);
+                                            return null;
+                                        });
                         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(throwable);
                         final Throwable strippedThrowable =
                                 ExceptionUtils.stripCompletionException(throwable);
@@ -572,14 +592,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     enum CleanupJobState {
-        LOCAL(false),
-        GLOBAL(true);
-
-        final boolean cleanupHAData;
-
-        CleanupJobState(boolean cleanupHAData) {
-            this.cleanupHAData = cleanupHAData;
-        }
+        LOCAL,
+        GLOBAL
     }
 
     private CleanupJobState jobManagerRunnerFailed(JobID jobId, Throwable throwable) {
@@ -907,86 +921,15 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     private CompletableFuture<Void> removeJob(JobID jobId, CleanupJobState cleanupJobState) {
-        final JobManagerRunner job = checkNotNull(jobManagerRunnerRegistry.unregister(jobId));
-        return CompletableFuture.supplyAsync(
-                        () -> cleanUpJobGraph(jobId, cleanupJobState.cleanupHAData), ioExecutor)
-                .thenCompose(
-                        jobGraphRemoved -> job.closeAsync().thenApply(ignored -> jobGraphRemoved))
-                .thenAcceptAsync(
-                        jobGraphRemoved -> {
-                            cleanUpRemainingJobData(jobId, jobGraphRemoved);
-                            if (jobGraphRemoved) {
-                                markJobAsClean(jobId);
-                            }
-                        },
-                        ioExecutor);
-    }
-
-    /**
-     * Clean up job graph from {@link org.apache.flink.runtime.jobmanager.JobGraphStore}.
-     *
-     * @param jobId Reference to the job that we want to clean.
-     * @param cleanupHA Flag signalling whether we should remove (we're done with the job) or just
-     *     release the job graph.
-     * @return True if we have removed the job graph. This means we can clean other HA-related
-     *     services as well.
-     */
-    private boolean cleanUpJobGraph(JobID jobId, boolean cleanupHA) {
-        if (cleanupHA) {
-            try {
-                jobGraphWriter.globalCleanup(jobId);
-                return true;
-            } catch (Exception e) {
-                log.warn(
-                        "Could not properly remove job {} from submitted job graph store.",
-                        jobId,
-                        e);
-                return false;
-            }
-        }
-        try {
-            jobGraphWriter.localCleanup(jobId);
-        } catch (Exception e) {
-            log.warn("Could not properly release job {} from submitted job graph store.", jobId, e);
-        }
-        return false;
-    }
-
-    private void cleanUpRemainingJobData(JobID jobId, boolean jobGraphRemoved) {
-        try {
-            jobManagerMetricGroup.globalCleanup(jobId);
-        } catch (Exception e) {
-            log.warn(
-                    "Could not properly clean data for job {} stored in JobManager metric group",
-                    jobId,
-                    e);
-        }
-
-        if (jobGraphRemoved) {
-            try {
-                highAvailabilityServices.globalCleanup(jobId);
-            } catch (Exception e) {
-                log.warn(
-                        "Could not properly clean data for job {} stored by ha services", jobId, e);
-            }
-
-            try {
-                blobServer.globalCleanup(jobId);
-            } catch (Exception e) {
-                log.warn(
-                        "Could not properly global clean data for job {} stored in the BlobServer.",
-                        jobId,
-                        e);
-            }
-        } else {
-            try {
-                blobServer.localCleanup(jobId);
-            } catch (IOException e) {
-                log.warn(
-                        "Could not properly clean local data for job {} stored in the BlobServer.",
-                        jobId,
-                        e);
-            }
+        switch (cleanupJobState) {
+            case LOCAL:
+                return localResourceCleaner.cleanupAsync(jobId);
+            case GLOBAL:
+                return globalResourceCleaner
+                        .cleanupAsync(jobId)
+                        .thenRun(() -> markJobAsClean(jobId));
+            default:
+                throw new IllegalStateException("Invalid cleanup state: " + cleanupJobState);
         }
     }
 
@@ -998,11 +941,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         } catch (IOException e) {
             log.warn("Could not properly mark job {} result as clean.", jobId, e);
         }
-    }
-
-    private void cleanUpHighAvailabilityJobData(JobID jobId) {
-        final boolean jobGraphRemoved = cleanUpJobGraph(jobId, true);
-        cleanUpRemainingJobData(jobId, jobGraphRemoved);
     }
 
     /** Terminate all currently running {@link JobManagerRunner}s. */
