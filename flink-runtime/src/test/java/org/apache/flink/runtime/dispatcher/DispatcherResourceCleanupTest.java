@@ -55,7 +55,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
-import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -68,6 +67,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -601,33 +601,13 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         }
     }
 
+    @Ignore
     @Test
-    public void testHABlobsAreNotRemovedIfHAJobGraphRemovalFails() throws Exception {
-        jobGraphWriter =
-                TestingJobGraphStore.newBuilder()
-                        .setGlobalCleanupConsumer(
-                                ignored -> {
-                                    throw new Exception("Failed to Remove future");
-                                })
-                        .withAutomaticStart()
-                        .build();
+    public void testLocalCleanup() {}
 
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob();
-
-        ArchivedExecutionGraph executionGraph =
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(jobId)
-                        .setState(JobStatus.CANCELED)
-                        .build();
-
-        final TestingJobManagerRunner testingJobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        testingJobManagerRunner.completeResultFuture(new ExecutionGraphInfo(executionGraph));
-
-        assertLocalCleanupTriggered(jobId);
-        assertThat(deleteAllHABlobsFuture.isDone(), is(false));
-    }
+    @Ignore
+    @Test
+    public void testGlobalCleanup() {}
 
     @Test
     public void testHABlobsAreRemovedIfHAJobGraphRemovalSucceeds() throws Exception {

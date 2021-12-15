@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerRegistry;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
@@ -42,6 +43,18 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     private final JobManagerMetricGroup jobManagerMetricGroup;
 
     public DispatcherResourceCleanerFactory(
+            JobManagerRunnerRegistry jobManagerRunnerRegistry,
+            DispatcherServices dispatcherServices) {
+        this(
+                dispatcherServices.getIoExecutor(),
+                jobManagerRunnerRegistry,
+                dispatcherServices.getJobGraphWriter(),
+                dispatcherServices.getBlobServer(),
+                dispatcherServices.getHighAvailabilityServices(),
+                dispatcherServices.getJobManagerMetricGroup());
+    }
+
+    private DispatcherResourceCleanerFactory(
             Executor cleanupExecutor,
             JobManagerRunnerRegistry jobManagerRunnerRegistry,
             JobGraphWriter jobGraphWriter,
