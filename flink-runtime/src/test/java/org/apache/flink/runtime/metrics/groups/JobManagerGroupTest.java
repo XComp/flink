@@ -62,12 +62,12 @@ public class JobManagerGroupTest extends TestLogger {
 
         assertEquals(2, group.numRegisteredJobMetricGroups());
 
-        group.removeJob(jid1);
+        group.globalCleanup(jid1);
 
         assertTrue(jmJobGroup11.isClosed());
         assertEquals(1, group.numRegisteredJobMetricGroups());
 
-        group.removeJob(jid2);
+        group.globalCleanup(jid2);
 
         assertTrue(jmJobGroup21.isClosed());
         assertEquals(0, group.numRegisteredJobMetricGroups());
