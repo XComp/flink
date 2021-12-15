@@ -166,6 +166,25 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 fencingToken,
                 recoveredJobs,
                 globallyTerminatedJobs,
+                dispatcherBootstrapFactory,
+                dispatcherServices,
+                new JobManagerRunnerRegistry(16));
+    }
+
+    private Dispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> globallyTerminatedJobs,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            DispatcherServices dispatcherServices,
+            JobManagerRunnerRegistry jobManagerRunnerRegistry)
+            throws Exception {
+        this(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                globallyTerminatedJobs,
                 dispatcherServices.getConfiguration(),
                 dispatcherServices.getHighAvailabilityServices(),
                 dispatcherServices.getResourceManagerGatewayRetriever(),
@@ -181,7 +200,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 dispatcherServices.getArchivedExecutionGraphStore(),
                 dispatcherServices.getJobManagerRunnerFactory(),
                 dispatcherBootstrapFactory,
-                dispatcherServices.getOperationCaches());
+                dispatcherServices.getOperationCaches(),
+                jobManagerRunnerRegistry);
     }
 
     private Dispatcher(
@@ -204,7 +224,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             ExecutionGraphInfoStore executionGraphInfoStore,
             JobManagerRunnerFactory jobManagerRunnerFactory,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            DispatcherOperationCaches dispatcherOperationCaches)
+            DispatcherOperationCaches dispatcherOperationCaches,
+            JobManagerRunnerRegistry jobManagerRunnerRegistry)
             throws Exception {
         super(rpcService, RpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
 
@@ -224,7 +245,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 JobManagerSharedServices.fromConfiguration(
                         configuration, blobServer, fatalErrorHandler);
 
-        jobManagerRunnerRegistry = new JobManagerRunnerRegistry(16);
+        this.jobManagerRunnerRegistry = checkNotNull(jobManagerRunnerRegistry);
 
         this.historyServerArchivist = checkNotNull(historyServerArchivist);
 
