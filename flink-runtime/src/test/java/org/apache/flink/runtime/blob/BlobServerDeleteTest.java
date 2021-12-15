@@ -271,21 +271,22 @@ public class BlobServerDeleteTest extends TestLogger {
     }
 
     @Test
-    public void testJobCleanup() throws IOException {
+    public void testJobCleanup() throws Exception {
         testJobCleanup(TRANSIENT_BLOB);
     }
 
     @Test
-    public void testJobCleanupHa() throws IOException {
+    public void testJobCleanupHa() throws Exception {
         testJobCleanup(PERMANENT_BLOB);
     }
 
     /**
-     * Tests that {@link BlobServer} cleans up after calling {@link BlobServer#cleanupJob}.
+     * Tests that {@link BlobServer} cleans up after calling {@link
+     * BlobServer#globalCleanup(JobID)}.
      *
      * @param blobType whether the BLOB should become permanent or transient
      */
-    private void testJobCleanup(BlobKey.BlobType blobType) throws IOException {
+    private void testJobCleanup(BlobKey.BlobType blobType) throws Exception {
         JobID jobId1 = new JobID();
         JobID jobId2 = new JobID();
 
@@ -314,7 +315,7 @@ public class BlobServerDeleteTest extends TestLogger {
             verifyContents(server, jobId2, key2, data);
             checkFileCountForJob(1, jobId2, server);
 
-            server.cleanupJob(jobId1, true);
+            server.globalCleanup(jobId1);
 
             verifyDeleted(server, jobId1, key1a);
             verifyDeleted(server, jobId1, key1b);
@@ -322,14 +323,14 @@ public class BlobServerDeleteTest extends TestLogger {
             verifyContents(server, jobId2, key2, data);
             checkFileCountForJob(1, jobId2, server);
 
-            server.cleanupJob(jobId2, true);
+            server.globalCleanup(jobId2);
 
             checkFileCountForJob(0, jobId1, server);
             verifyDeleted(server, jobId2, key2);
             checkFileCountForJob(0, jobId2, server);
 
             // calling a second time should not fail
-            server.cleanupJob(jobId2, true);
+            server.globalCleanup(jobId2);
         }
     }
 

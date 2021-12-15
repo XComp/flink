@@ -854,8 +854,25 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 log.warn(
                         "Could not properly clean data for job {} stored by ha services", jobId, e);
             }
+
+            try {
+                blobServer.globalCleanup(jobId);
+            } catch (Exception e) {
+                log.warn(
+                        "Could not properly global clean data for job {} stored in the BlobServer.",
+                        jobId,
+                        e);
+            }
+        } else {
+            try {
+                blobServer.localCleanup(jobId);
+            } catch (IOException e) {
+                log.warn(
+                        "Could not properly clean local data for job {} stored in the BlobServer.",
+                        jobId,
+                        e);
+            }
         }
-        blobServer.cleanupJob(jobId, jobGraphRemoved);
     }
 
     private void cleanUpJobResult(JobID jobId, boolean jobGraphRemoved) {
