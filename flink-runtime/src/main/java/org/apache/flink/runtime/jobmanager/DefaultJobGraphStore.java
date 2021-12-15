@@ -238,7 +238,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void removeJobGraph(JobID jobId) throws Exception {
+    public void globalCleanup(JobID jobId) throws Exception {
         checkNotNull(jobId, "Job ID");
         String name = jobGraphStoreUtil.jobIDToName(jobId);
 
@@ -262,7 +262,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void releaseJobGraph(JobID jobId) throws Exception {
+    public void localCleanup(JobID jobId) throws Exception {
         checkNotNull(jobId, "Job ID");
 
         LOG.debug("Releasing job graph {} from {}.", jobId, jobGraphStateHandleStore);

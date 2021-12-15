@@ -54,9 +54,9 @@ public class TestingJobGraphStore implements JobGraphStore {
 
     private final ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer;
 
-    private final ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer;
+    private final ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer;
 
-    private final ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer;
+    private final ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer;
 
     private boolean started;
 
@@ -68,16 +68,16 @@ public class TestingJobGraphStore implements JobGraphStore {
             BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
                     recoverJobGraphFunction,
             ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
-            ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer,
-            ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer,
+            ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer,
+            ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer,
             Collection<JobGraph> initialJobGraphs) {
         this.startConsumer = startConsumer;
         this.stopRunnable = stopRunnable;
         this.jobIdsFunction = jobIdsFunction;
         this.recoverJobGraphFunction = recoverJobGraphFunction;
         this.putJobGraphConsumer = putJobGraphConsumer;
-        this.removeJobGraphConsumer = removeJobGraphConsumer;
-        this.releaseJobGraphConsumer = releaseJobGraphConsumer;
+        this.globalCleanupConsumer = globalCleanupConsumer;
+        this.localCleanupConsumer = localCleanupConsumer;
 
         for (JobGraph initialJobGraph : initialJobGraphs) {
             storedJobs.put(initialJobGraph.getJobID(), initialJobGraph);
@@ -110,16 +110,16 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public synchronized void removeJobGraph(JobID jobId) throws Exception {
+    public synchronized void globalCleanup(JobID jobId) throws Exception {
         verifyIsStarted();
-        removeJobGraphConsumer.accept(jobId);
+        globalCleanupConsumer.accept(jobId);
         storedJobs.remove(jobId);
     }
 
     @Override
-    public synchronized void releaseJobGraph(JobID jobId) throws Exception {
+    public synchronized void localCleanup(JobID jobId) throws Exception {
         verifyIsStarted();
-        releaseJobGraphConsumer.accept(jobId);
+        localCleanupConsumer.accept(jobId);
     }
 
     @Override
@@ -156,10 +156,9 @@ public class TestingJobGraphStore implements JobGraphStore {
 
         private ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer = ignored -> {};
 
-        private ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer = ignored -> {};
+        private ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer = ignored -> {};
 
-        private ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer =
-                ignored -> {};
+        private ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer = ignored -> {};
 
         private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
 
@@ -198,15 +197,15 @@ public class TestingJobGraphStore implements JobGraphStore {
             return this;
         }
 
-        public Builder setRemoveJobGraphConsumer(
-                ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer) {
-            this.removeJobGraphConsumer = removeJobGraphConsumer;
+        public Builder setGlobalCleanupConsumer(
+                ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer) {
+            this.globalCleanupConsumer = globalCleanupConsumer;
             return this;
         }
 
-        public Builder setReleaseJobGraphConsumer(
-                ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer) {
-            this.releaseJobGraphConsumer = releaseJobGraphConsumer;
+        public Builder setLocalCleanupConsumer(
+                ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer) {
+            this.localCleanupConsumer = localCleanupConsumer;
             return this;
         }
 
@@ -228,8 +227,8 @@ public class TestingJobGraphStore implements JobGraphStore {
                             jobIdsFunction,
                             recoverJobGraphFunction,
                             putJobGraphConsumer,
-                            removeJobGraphConsumer,
-                            releaseJobGraphConsumer,
+                            globalCleanupConsumer,
+                            localCleanupConsumer,
                             initialJobGraphs);
 
             if (startJobGraphStore) {
