@@ -25,9 +25,12 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
+import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -74,7 +77,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the directory structure to store the BLOBs or temporarily cache them.
  */
 public class BlobServer extends Thread
-        implements BlobService, BlobWriter, PermanentBlobService, TransientBlobService {
+        implements BlobService,
+                BlobWriter,
+                PermanentBlobService,
+                TransientBlobService,
+                LocallyCleanableResource,
+                GloballyCleanableResource {
 
     /** The log object used for debugging. */
     private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
@@ -861,15 +869,14 @@ public class BlobServer extends Thread
     }
 
     /**
-     * Removes all BLOBs from local and HA store belonging to the given job ID.
+     * Deletes locally stored artifacts for the job represented by the given {@link JobID}. This
+     * doesn't touch the job's entry in the {@link BlobStore} to enable recovering.
      *
-     * @param jobId ID of the job this blob belongs to
-     * @param cleanupBlobStoreFiles True if the corresponding blob store files shall be cleaned up
-     *     as well. Otherwise false.
-     * @return <tt>true</tt> if the job directory is successfully deleted or non-existing;
-     *     <tt>false</tt> otherwise
+     * @param jobId The {@code JobID} of the job that is subject to cleanup.
+     * @throws IOException if the cleanup failed.
      */
-    public boolean cleanupJob(JobID jobId, boolean cleanupBlobStoreFiles) {
+    @Override
+    public void localCleanup(JobID jobId) throws IOException {
         checkNotNull(jobId);
 
         final File jobDir =
@@ -877,45 +884,58 @@ public class BlobServer extends Thread
                         BlobUtils.getStorageLocationPath(
                                 storageDir.deref().getAbsolutePath(), jobId));
 
+        FileUtils.deleteDirectory(jobDir);
+
+        // NOTE on why blobExpiryTimes are not cleaned up:
+        //       Instead of going through blobExpiryTimes, keep lingering entries - they
+        //       will be cleaned up by the timer task which tolerates non-existing files
+        //       If inserted again with the same IDs (via put()), the TTL will be updated
+        //       again.
+    }
+
+    /**
+     * Removes all BLOBs from local and HA store belonging to the given {@link JobID}.
+     *
+     * @param jobId ID of the job this blob belongs to
+     * @throws Exception if the cleanup fails.
+     */
+    @Override
+    public void globalCleanup(JobID jobId) throws Exception {
+        checkNotNull(jobId);
+
         readWriteLock.writeLock().lock();
 
         try {
-            // delete locally
-            boolean deletedLocally = false;
+            Exception exception = null;
+
             try {
-                FileUtils.deleteDirectory(jobDir);
-
-                // NOTE on why blobExpiryTimes are not cleaned up:
-                //       Instead of going through blobExpiryTimes, keep lingering entries - they
-                //       will be cleaned up by the timer task which tolerates non-existing files
-                //       If inserted again with the same IDs (via put()), the TTL will be updated
-                //       again.
-
-                deletedLocally = true;
+                localCleanup(jobId);
             } catch (IOException e) {
-                LOG.warn(
-                        "Failed to locally delete BLOB storage directory at "
-                                + jobDir.getAbsolutePath(),
-                        e);
+                exception = e;
             }
 
-            // delete in HA blob store files
-            final boolean deletedHA = !cleanupBlobStoreFiles || blobStore.deleteAll(jobId);
+            if (!blobStore.deleteAll(jobId)) {
+                exception =
+                        ExceptionUtils.firstOrSuppressed(
+                                new FlinkException(
+                                        "Error while cleaning up the BlobStore for job " + jobId),
+                                exception);
+            }
 
-            return deletedLocally && deletedHA;
+            ExceptionUtils.tryRethrowException(exception);
         } finally {
             readWriteLock.writeLock().unlock();
         }
     }
 
-    public void retainJobs(Collection<JobID> jobsToRetain) throws IOException {
+    public void retainJobs(Collection<JobID> jobsToRetain) throws Exception {
         if (storageDir.deref().exists()) {
             final Set<JobID> jobsToRemove = BlobUtils.listExistingJobs(storageDir.deref().toPath());
 
             jobsToRemove.removeAll(jobsToRetain);
 
             for (JobID jobToRemove : jobsToRemove) {
-                cleanupJob(jobToRemove, true);
+                globalCleanup(jobToRemove);
             }
         }
     }
