@@ -174,7 +174,7 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                 haServices -> {
                     final List<String> childrenBefore = client.getChildren().forPath(path);
 
-                    haServices.cleanupJobData(jobID);
+                    haServices.globalCleanup(jobID);
 
                     final List<String> childrenAfter = client.getChildren().forPath(path);
 
