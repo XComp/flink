@@ -868,7 +868,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private boolean cleanUpJobGraph(JobID jobId, boolean cleanupHA) {
         if (cleanupHA) {
             try {
-                jobGraphWriter.removeJobGraph(jobId);
+                jobGraphWriter.globalCleanup(jobId);
                 return true;
             } catch (Exception e) {
                 log.warn(
@@ -879,7 +879,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             }
         }
         try {
-            jobGraphWriter.releaseJobGraph(jobId);
+            jobGraphWriter.localCleanup(jobId);
         } catch (Exception e) {
             log.warn("Could not properly release job {} from submitted job graph store.", jobId, e);
         }
