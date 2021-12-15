@@ -206,7 +206,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public void cleanupJobData(JobID jobID) throws Exception {
+    public void globalCleanup(JobID jobID) throws Exception {
         logger.info("Clean up the high availability data for job {}.", jobID);
         internalCleanupJobData(jobID);
         logger.info("Finished cleaning up the high availability data for job {}.", jobID);

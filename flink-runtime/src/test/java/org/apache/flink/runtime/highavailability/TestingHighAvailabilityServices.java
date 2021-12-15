@@ -73,7 +73,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
 
-    private volatile CompletableFuture<JobID> jobCleanupFuture;
+    private volatile CompletableFuture<JobID> globalCleanupFuture;
+    private volatile CompletableFuture<JobID> localCleanupFuture;
 
     // ------------------------------------------------------------------------
     //  Setters for mock / testing implementations
@@ -148,8 +149,12 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
     }
 
-    public void setCleanupJobDataFuture(CompletableFuture<JobID> jobCleanupFuture) {
-        this.jobCleanupFuture = jobCleanupFuture;
+    public void setGlobalCleanupFuture(CompletableFuture<JobID> globalCleanupFuture) {
+        this.globalCleanupFuture = globalCleanupFuture;
+    }
+
+    public void setLocalCleanupFuture(CompletableFuture<JobID> localCleanupFuture) {
+        this.localCleanupFuture = localCleanupFuture;
     }
 
     // ------------------------------------------------------------------------
@@ -286,7 +291,12 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public void cleanupJobData(JobID jobID) {
-        Optional.ofNullable(jobCleanupFuture).ifPresent(f -> f.complete(jobID));
+    public void globalCleanup(JobID jobID) throws Exception {
+        Optional.ofNullable(globalCleanupFuture).ifPresent(f -> f.complete(jobID));
+    }
+
+    @Override
+    public void localCleanup(JobID jobID) throws Exception {
+        Optional.ofNullable(localCleanupFuture).ifPresent(f -> f.complete(jobID));
     }
 }
