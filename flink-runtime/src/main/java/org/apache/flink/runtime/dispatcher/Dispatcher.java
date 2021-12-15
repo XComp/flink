@@ -550,8 +550,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(jobGraph.getJobID()));
         long initializationTimestamp = System.currentTimeMillis();
         JobManagerRunner jobManagerRunner =
-                createJobManagerRunner(jobGraph, initializationTimestamp);
+                initializeJobManagerRunner(jobGraph, initializationTimestamp);
 
+        jobManagerRunner.start();
         jobManagerRunnerRegistry.register(jobManagerRunner);
 
         final JobID jobId = jobGraph.getJobID();
@@ -607,23 +608,20 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         return CleanupJobState.LOCAL;
     }
 
-    JobManagerRunner createJobManagerRunner(JobGraph jobGraph, long initializationTimestamp)
+    JobManagerRunner initializeJobManagerRunner(JobGraph jobGraph, long initializationTimestamp)
             throws Exception {
         final RpcService rpcService = getRpcService();
 
-        JobManagerRunner runner =
-                jobManagerRunnerFactory.createJobManagerRunner(
-                        jobGraph,
-                        configuration,
-                        rpcService,
-                        highAvailabilityServices,
-                        heartbeatServices,
-                        jobManagerSharedServices,
-                        new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
-                        fatalErrorHandler,
-                        initializationTimestamp);
-        runner.start();
-        return runner;
+        return jobManagerRunnerFactory.createJobManagerRunner(
+                jobGraph,
+                configuration,
+                rpcService,
+                highAvailabilityServices,
+                heartbeatServices,
+                jobManagerSharedServices,
+                new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
+                fatalErrorHandler,
+                initializationTimestamp);
     }
 
     @Override
