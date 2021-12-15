@@ -89,7 +89,7 @@ public class BlobServerRecoveryTest extends TestLogger {
      */
     public static void testBlobServerRecovery(
             final Configuration config, final BlobStore blobStore, final File blobStorage)
-            throws IOException {
+            throws Exception {
         final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
         String storagePath =
                 config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
@@ -141,8 +141,8 @@ public class BlobServerRecoveryTest extends TestLogger {
             verifyDeleted(cache1, jobId[0], nonHAKey);
 
             // Remove again
-            server1.cleanupJob(jobId[0], true);
-            server1.cleanupJob(jobId[1], true);
+            server1.globalCleanup(jobId[0]);
+            server1.globalCleanup(jobId[1]);
 
             // Verify everything is clean
             assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));

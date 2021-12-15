@@ -220,7 +220,7 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerRetainsJobs() throws IOException {
+    public void testBlobServerRetainsJobs() throws Exception {
         final File storageDirectory = temporaryFolder.newFolder();
 
         final JobID jobId1 = new JobID();
