@@ -31,7 +31,7 @@ public class StandaloneJobGraphStoreTest {
 
     /** Tests that all operations work and don't change the state. */
     @Test
-    public void testNoOps() {
+    public void testNoOps() throws Exception {
         StandaloneJobGraphStore jobGraphs = new StandaloneJobGraphStore();
 
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
@@ -41,7 +41,7 @@ public class StandaloneJobGraphStoreTest {
         jobGraphs.putJobGraph(jobGraph);
         assertEquals(0, jobGraphs.getJobIds().size());
 
-        jobGraphs.removeJobGraph(jobGraph.getJobID());
+        jobGraphs.globalCleanup(jobGraph.getJobID());
         assertEquals(0, jobGraphs.getJobIds().size());
 
         assertNull(jobGraphs.recoverJobGraph(new JobID()));

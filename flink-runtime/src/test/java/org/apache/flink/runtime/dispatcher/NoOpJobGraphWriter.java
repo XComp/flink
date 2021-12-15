@@ -30,8 +30,5 @@ public enum NoOpJobGraphWriter implements JobGraphWriter {
     public void putJobGraph(JobGraph jobGraph) throws Exception {}
 
     @Override
-    public void removeJobGraph(JobID jobId) throws Exception {}
-
-    @Override
-    public void releaseJobGraph(JobID jobId) throws Exception {}
+    public void localCleanup(JobID jobId) throws Exception {}
 }

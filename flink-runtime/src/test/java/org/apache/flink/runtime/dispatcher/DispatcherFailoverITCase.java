@@ -103,7 +103,7 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         final Error jobGraphRemovalError = new Error("Unable to remove job graph.");
         final TestingJobGraphStore jobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setRemoveJobGraphConsumer(
+                        .setGlobalCleanupConsumer(
                                 graph -> {
                                     throw jobGraphRemovalError;
                                 })

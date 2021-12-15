@@ -130,7 +130,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             verifyJobGraphs(jobGraph, jobGraphs.recoverJobGraph(jobId));
 
             // Remove
-            jobGraphs.removeJobGraph(jobGraph.getJobID());
+            jobGraphs.globalCleanup(jobGraph.getJobID());
 
             // Empty state
             assertEquals(0, jobGraphs.getJobIds().size());
@@ -140,7 +140,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             verify(listener, never()).onRemovedJobGraph(any(JobID.class));
 
             // Don't fail if called again
-            jobGraphs.removeJobGraph(jobGraph.getJobID());
+            jobGraphs.globalCleanup(jobGraph.getJobID());
         } finally {
             jobGraphs.stop();
         }
@@ -193,7 +193,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
                 verifyJobGraphs(expected.get(jobGraph.getJobID()), jobGraph);
 
-                jobGraphs.removeJobGraph(jobGraph.getJobID());
+                jobGraphs.globalCleanup(jobGraph.getJobID());
             }
 
             // Empty state
@@ -313,7 +313,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         assertThat(recoveredJobGraph, is(notNullValue()));
 
         try {
-            otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+            otherSubmittedJobGraphStore.globalCleanup(recoveredJobGraph.getJobID());
             fail(
                     "It should not be possible to remove the JobGraph since the first store still has a lock on it.");
         } catch (Exception ignored) {
@@ -323,7 +323,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         submittedJobGraphStore.stop();
 
         // now we should be able to delete the job graph
-        otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+        otherSubmittedJobGraphStore.globalCleanup(recoveredJobGraph.getJobID());
 
         assertThat(
                 otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobID()),
