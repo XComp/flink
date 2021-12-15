@@ -91,7 +91,6 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -131,6 +130,7 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -779,7 +779,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
             // make sure we've cleaned up in correct order (including HA)
             assertThat(
                     new ArrayList<>(cleanUpEvents),
-                    equalTo(Arrays.asList(CLEANUP_JOB_GRAPH_REMOVE, CLEANUP_HA_SERVICES)));
+                    containsInAnyOrder(CLEANUP_JOB_GRAPH_REMOVE, CLEANUP_HA_SERVICES));
         }
 
         // don't fail this time
@@ -1158,7 +1158,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         assertThat(
                                                 "All cleanup tasks should have been finished before marking the job as clean.",
                                                 cleanUpEvents,
-                                                IsIterableContainingInAnyOrder.containsInAnyOrder(
+                                                containsInAnyOrder(
                                                         CLEANUP_HA_SERVICES,
                                                         CLEANUP_JOB_GRAPH_REMOVE,
                                                         CLEANUP_JOB_MANAGER_RUNNER)))
