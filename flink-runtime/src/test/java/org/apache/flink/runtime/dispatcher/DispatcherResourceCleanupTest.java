@@ -36,7 +36,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -110,8 +109,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private JobResultStore jobResultStore;
 
-    private TestingHighAvailabilityServices highAvailabilityServices;
-
     private OneShotLatch clearedJobLatch;
 
     private TestingDispatcher dispatcher;
@@ -122,7 +119,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private CompletableFuture<JobID> localCleanupFuture;
     private CompletableFuture<JobID> globalCleanupFuture;
-    private CompletableFuture<JobID> cleanupJobHADataFuture;
 
     @BeforeClass
     public static void setupClass() {
@@ -134,11 +130,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         jobId = jobGraph.getJobID();
 
-        highAvailabilityServices = new TestingHighAvailabilityServices();
         clearedJobLatch = new OneShotLatch();
         jobResultStore = new SingleJobResultStore(jobId, clearedJobLatch);
-        cleanupJobHADataFuture = new CompletableFuture<>();
-        highAvailabilityServices.setGlobalCleanupFuture(cleanupJobHADataFuture);
 
         globalCleanupFuture = new CompletableFuture<>();
         localCleanupFuture = new CompletableFuture<>();
@@ -169,7 +162,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         dispatcher =
                 TestingDispatcher.builder()
                         .withRpcService(rpcService)
-                        .withHighAvailabilityServices(highAvailabilityServices)
                         .withJobResultStore(jobResultStore)
                         .withJobManagerRunnerRegistry(jobManagerRunnerRegistry)
                         .withBlobServer(blobServer)
@@ -402,8 +394,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         TestingJobManagerRunner jobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();
         finishJob(jobManagerRunner);
-        JobID jobID = cleanupJobHADataFuture.get(2000, TimeUnit.MILLISECONDS);
-        assertThat(jobID, is(this.jobId));
+        assertGlobalCleanupTriggered(jobId);
     }
 
     @Test
@@ -412,13 +403,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         TestingJobManagerRunner jobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();
         suspendJob(jobManagerRunner);
-        try {
-            cleanupJobHADataFuture.get(10L, TimeUnit.MILLISECONDS);
-            fail("We should not delete the HA data for job.");
-        } catch (TimeoutException ignored) {
-            // expected
-        }
-        assertThat(cleanupJobHADataFuture.isDone(), is(false));
+        assertLocalCleanupTriggered(jobId);
     }
 
     private void finishJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
