@@ -30,12 +30,11 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
-import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunner;
+import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleaner;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
@@ -76,7 +75,6 @@ import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -141,6 +139,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private final ExecutionGraphInfoStore executionGraphInfoStore;
 
     private final JobManagerRunnerFactory jobManagerRunnerFactory;
+    private final CleanupRunnerFactory cleanupRunnerFactory;
 
     private final JobManagerMetricGroup jobManagerMetricGroup;
 
@@ -213,6 +212,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 dispatcherServices.getHistoryServerArchivist(),
                 dispatcherServices.getArchivedExecutionGraphStore(),
                 dispatcherServices.getJobManagerRunnerFactory(),
+                dispatcherServices.getCleanupRunnerFactory(),
                 dispatcherBootstrapFactory,
                 dispatcherServices.getOperationCaches(),
                 jobManagerRunnerRegistry,
@@ -239,6 +239,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             HistoryServerArchivist historyServerArchivist,
             ExecutionGraphInfoStore executionGraphInfoStore,
             JobManagerRunnerFactory jobManagerRunnerFactory,
+            CleanupRunnerFactory cleanupRunnerFactory,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherOperationCaches dispatcherOperationCaches,
             JobManagerRunnerRegistry jobManagerRunnerRegistry,
@@ -272,6 +273,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.executionGraphInfoStore = executionGraphInfoStore;
 
         this.jobManagerRunnerFactory = jobManagerRunnerFactory;
+        this.cleanupRunnerFactory = cleanupRunnerFactory;
 
         this.jobManagerRunnerTerminationFutures = new HashMap<>(2);
 
@@ -665,14 +667,11 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private JobManagerRunner initializeCheckpointJobDataCleanupRunner(JobResult jobResult)
             throws Exception {
-        return new CheckpointResourcesCleanupRunner(
+        return cleanupRunnerFactory.create(
                 jobResult,
                 highAvailabilityServices.getCheckpointRecoveryFactory(),
-                new CheckpointsCleaner(),
-                SharedStateRegistry.DEFAULT_FACTORY,
                 configuration,
-                ioExecutor,
-                System.currentTimeMillis());
+                ioExecutor);
     }
 
     @Override
