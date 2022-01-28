@@ -182,8 +182,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob(
             int numBlockingJobManagerRunners) throws Exception {
-        final TestingJobManagerRunnerFactory testingJobManagerRunnerFactoryNG =
-                new TestingJobManagerRunnerFactory(numBlockingJobManagerRunners);
+        final TestingJobMasterServiceLeadershipRunnerFactory testingJobManagerRunnerFactoryNG =
+                new TestingJobMasterServiceLeadershipRunnerFactory(numBlockingJobManagerRunners);
         startDispatcher(testingJobManagerRunnerFactoryNG);
         submitJobAndWait();
 

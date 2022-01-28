@@ -504,8 +504,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Test
     public void testJobManagerRunnerInitializationFailureFailsJob() throws Exception {
-        final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory();
+        final TestingJobMasterServiceLeadershipRunnerFactory testingJobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
 
         dispatcher =
                 createAndStartDispatcher(
@@ -666,8 +666,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final FlinkException testException = new FlinkException("Test exception");
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory();
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
         dispatcher =
                 createTestingDispatcherBuilder()
                         .withJobManagerRunnerFactory(jobManagerRunnerFactory)
@@ -1339,13 +1339,14 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     private static final class BlockingJobManagerRunnerFactory
-            extends TestingJobManagerRunnerFactory {
+            extends TestingJobMasterServiceLeadershipRunnerFactory {
 
         @Nonnull private final ThrowingRunnable<Exception> jobManagerRunnerCreationLatch;
         private TestingJobManagerRunner testingRunner;
 
         BlockingJobManagerRunnerFactory(
                 @Nonnull ThrowingRunnable<Exception> jobManagerRunnerCreationLatch) {
+            super(0);
             this.jobManagerRunnerCreationLatch = jobManagerRunnerCreationLatch;
         }
 
