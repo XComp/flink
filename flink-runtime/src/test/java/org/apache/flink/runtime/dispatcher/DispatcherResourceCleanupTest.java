@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
@@ -43,6 +42,8 @@ import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
+import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -57,6 +58,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.After;
@@ -69,8 +71,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -78,11 +78,15 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
+import static org.apache.flink.runtime.dispatcher.AbstractDispatcherTest.awaitStatus;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -262,7 +266,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
             submissionFuture.get();
             fail("Job submission was expected to fail.");
         } catch (ExecutionException ee) {
-            assertThat(ee, FlinkMatchers.containsCause(JobSubmissionException.class));
+            assertThat(ee, containsCause(JobSubmissionException.class));
         }
 
         assertGlobalCleanupTriggered(jobId);
@@ -605,6 +609,111 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         }
 
         assertThat(dirtyJobFuture.get().getJobId(), is(jobId));
+    }
+
+    /** Tests that a failing {@link JobManagerRunner} will be properly cleaned up. */
+    @Test
+    public void testFailingJobManagerRunnerCleanup() throws Exception {
+        final FlinkException testException = new FlinkException("Test exception.");
+        final ArrayBlockingQueue<Optional<Exception>> queue = new ArrayBlockingQueue<>(2);
+
+        final BlockingJobManagerRunnerFactory blockingJobManagerRunnerFactory =
+                new BlockingJobManagerRunnerFactory(
+                        () -> {
+                            final Optional<Exception> maybeException = queue.take();
+                            if (maybeException.isPresent()) {
+                                throw maybeException.get();
+                            }
+                        });
+
+        startDispatcher(blockingJobManagerRunnerFactory);
+
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        // submit and fail during job master runner construction
+        queue.offer(Optional.of(testException));
+        try {
+            dispatcherGateway.submitJob(jobGraph, Time.minutes(1)).get();
+            fail("A FlinkException is expected");
+        } catch (Throwable expectedException) {
+            assertThat(expectedException, containsCause(FlinkException.class));
+            assertThat(expectedException, containsMessage(testException.getMessage()));
+            // make sure we've cleaned up in correct order (including HA)
+            assertGlobalCleanupTriggered(jobId);
+        }
+
+        // don't fail this time
+        queue.offer(Optional.empty());
+        // submit job again
+        dispatcherGateway.submitJob(jobGraph, Time.minutes(1L)).get();
+        blockingJobManagerRunnerFactory.setJobStatus(JobStatus.RUNNING);
+
+        // Ensure job is running
+        awaitStatus(dispatcherGateway, jobId, JobStatus.RUNNING);
+    }
+
+    private static final class BlockingJobManagerRunnerFactory
+            extends TestingJobManagerRunnerFactory {
+
+        private final ThrowingRunnable<Exception> jobManagerRunnerCreationLatch;
+        private TestingJobManagerRunner testingRunner;
+
+        BlockingJobManagerRunnerFactory(ThrowingRunnable<Exception> jobManagerRunnerCreationLatch) {
+            this.jobManagerRunnerCreationLatch = jobManagerRunnerCreationLatch;
+        }
+
+        @Override
+        public TestingJobManagerRunner createJobManagerRunner(
+                JobGraph jobGraph,
+                Configuration configuration,
+                RpcService rpcService,
+                HighAvailabilityServices highAvailabilityServices,
+                HeartbeatServices heartbeatServices,
+                JobManagerSharedServices jobManagerSharedServices,
+                JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+                FatalErrorHandler fatalErrorHandler,
+                long initializationTimestamp)
+                throws Exception {
+            jobManagerRunnerCreationLatch.run();
+
+            this.testingRunner =
+                    super.createJobManagerRunner(
+                            jobGraph,
+                            configuration,
+                            rpcService,
+                            highAvailabilityServices,
+                            heartbeatServices,
+                            jobManagerSharedServices,
+                            jobManagerJobMetricGroupFactory,
+                            fatalErrorHandler,
+                            initializationTimestamp);
+
+            TestingJobMasterGateway testingJobMasterGateway =
+                    new TestingJobMasterGatewayBuilder()
+                            .setRequestJobSupplier(
+                                    () ->
+                                            CompletableFuture.completedFuture(
+                                                    new ExecutionGraphInfo(
+                                                            ArchivedExecutionGraph
+                                                                    .createFromInitializingJob(
+                                                                            jobGraph.getJobID(),
+                                                                            jobGraph.getName(),
+                                                                            JobStatus.RUNNING,
+                                                                            null,
+                                                                            null,
+                                                                            1337))))
+                            .build();
+            testingRunner.completeJobMasterGatewayFuture(testingJobMasterGateway);
+            return testingRunner;
+        }
+
+        public void setJobStatus(JobStatus newStatus) {
+            Preconditions.checkState(
+                    testingRunner != null,
+                    "JobManagerRunner must be created before this method is available");
+            this.testingRunner.setJobStatus(newStatus);
+        }
     }
 
     private static final class QueueJobManagerRunnerFactory implements JobManagerRunnerFactory {
