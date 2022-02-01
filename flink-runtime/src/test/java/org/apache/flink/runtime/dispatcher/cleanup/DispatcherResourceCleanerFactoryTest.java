@@ -24,7 +24,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.dispatcher.JobManagerRunnerRegistry;
+import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerRegistry;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -336,7 +336,7 @@ public class DispatcherResourceCleanerFactoryTest {
         }
     }
 
-    private static class CleanableJobManagerRegistry extends JobManagerRunnerRegistry {
+    private static class CleanableJobManagerRegistry extends DefaultJobManagerRunnerRegistry {
 
         private final CompletableFuture<JobID> localCleanupFuture = new CompletableFuture<>();
 
