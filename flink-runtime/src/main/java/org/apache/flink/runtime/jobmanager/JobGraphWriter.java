@@ -34,15 +34,6 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      */
     void putJobGraph(JobGraph jobGraph) throws Exception;
 
-    /**
-     * Releases the locks on the specified {@link JobGraph}.
-     *
-     * <p>Releasing the locks allows that another instance can delete the job from the {@link
-     * JobGraphStore}.
-     *
-     * @param jobId specifying the job to release the locks for
-     * @throws IOException if the locks cannot be released
-     */
     @Override
     default void localCleanup(JobID jobId) throws IOException {}
 

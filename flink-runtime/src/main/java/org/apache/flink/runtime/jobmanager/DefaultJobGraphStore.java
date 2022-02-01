@@ -273,6 +273,15 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
         }
     }
 
+    /**
+     * Releases the locks on the specified {@link JobGraph}.
+     *
+     * <p>Releasing the locks allows that another instance can delete the job from the {@link
+     * JobGraphStore}.
+     *
+     * @param jobId specifying the job to release the locks for
+     * @throws IOException if the locks cannot be released
+     */
     @Override
     public void localCleanup(JobID jobId) throws IOException {
         checkNotNull(jobId, "Job ID");
