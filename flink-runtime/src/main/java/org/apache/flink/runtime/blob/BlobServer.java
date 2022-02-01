@@ -885,11 +885,10 @@ public class BlobServer extends Thread
 
         FileUtils.deleteDirectory(jobDir);
 
-        // NOTE on why blobExpiryTimes are not cleaned up:
-        //       Instead of going through blobExpiryTimes, keep lingering entries - they
-        //       will be cleaned up by the timer task which tolerates non-existing files
-        //       If inserted again with the same IDs (via put()), the TTL will be updated
-        //       again.
+        // NOTE on why blobExpiryTimes are not cleaned up: Instead of going through blobExpiryTimes,
+        // keep lingering entries. They will be cleaned up by the timer task which tolerates
+        // non-existing files. If inserted again with the same IDs (via put()), the TTL will be
+        // updated again.
     }
 
     /**
