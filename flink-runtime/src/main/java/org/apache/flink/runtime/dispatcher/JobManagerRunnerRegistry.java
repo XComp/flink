@@ -27,8 +27,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -74,11 +76,11 @@ public class JobManagerRunnerRegistry implements LocallyCleanableResource {
     }
 
     public Set<JobID> getRunningJobIds() {
-        return this.jobManagerRunners.keySet();
+        return new HashSet<>(this.jobManagerRunners.keySet());
     }
 
     public Collection<JobManagerRunner> getJobManagerRunners() {
-        return this.jobManagerRunners.values();
+        return new ArrayList<>(this.jobManagerRunners.values());
     }
 
     @Override
