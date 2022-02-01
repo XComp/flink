@@ -121,8 +121,9 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
                 TestingJobGraphStore.newBuilder()
                         .setGlobalCleanupConsumer(
                                 graph -> {
-                                    if (temporaryErrorRef.get() != null) {
-                                        throw temporaryErrorRef.getAndSet(null);
+                                    final Error error = temporaryErrorRef.getAndSet(null);
+                                    if (error != null) {
+                                        throw error;
                                     }
                                 })
                         .build();
