@@ -28,7 +28,6 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -287,6 +286,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     @Override
     public void globalCleanup(JobID jobID) throws IOException {
-        Optional.ofNullable(globalCleanupFuture).ifPresent(f -> f.complete(jobID));
+        if (globalCleanupFuture != null) {
+            globalCleanupFuture.complete(jobID);
+        }
     }
 }
