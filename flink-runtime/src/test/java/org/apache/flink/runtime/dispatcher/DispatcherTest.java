@@ -779,7 +779,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
             // make sure we've cleaned up in correct order (including HA)
             assertThat(
                     new ArrayList<>(cleanUpEvents),
-                    containsInAnyOrder(CLEANUP_JOB_GRAPH_REMOVE, CLEANUP_HA_SERVICES));
+                    containsInAnyOrder(
+                            CLEANUP_JOB_GRAPH_RELEASE,
+                            CLEANUP_JOB_GRAPH_REMOVE,
+                            CLEANUP_HA_SERVICES));
         }
 
         // don't fail this time
@@ -1159,6 +1162,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                 "All cleanup tasks should have been finished before marking the job as clean.",
                                                 cleanUpEvents,
                                                 containsInAnyOrder(
+                                                        CLEANUP_JOB_GRAPH_RELEASE,
                                                         CLEANUP_HA_SERVICES,
                                                         CLEANUP_JOB_GRAPH_REMOVE,
                                                         CLEANUP_JOB_MANAGER_RUNNER)))

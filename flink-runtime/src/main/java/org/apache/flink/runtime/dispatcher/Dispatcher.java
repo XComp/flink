@@ -86,6 +86,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -507,8 +508,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         return persistAndRunFuture.handleAsync(
                 (acknowledge, throwable) -> {
                     if (throwable != null) {
-                        globalResourceCleaner
-                                .cleanupAsync(jobGraph.getJobID())
+                        globalCleanup(jobGraph.getJobID())
                                 .exceptionally(
                                         t -> {
                                             log.warn(
@@ -923,14 +923,21 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private CompletableFuture<Void> removeJob(JobID jobId, CleanupJobState cleanupJobState) {
         switch (cleanupJobState) {
             case LOCAL:
-                return localResourceCleaner.cleanupAsync(jobId);
+                return localCleanup(jobId);
             case GLOBAL:
-                return globalResourceCleaner
-                        .cleanupAsync(jobId)
-                        .thenRun(() -> markJobAsClean(jobId));
+                return globalCleanup(jobId).thenRun(() -> markJobAsClean(jobId));
             default:
                 throw new IllegalStateException("Invalid cleanup state: " + cleanupJobState);
         }
+    }
+
+    private CompletableFuture<Void> globalCleanup(JobID jobId) {
+        return FutureUtils.completeAll(
+                Arrays.asList(localCleanup(jobId), globalResourceCleaner.cleanupAsync(jobId)));
+    }
+
+    private CompletableFuture<Void> localCleanup(JobID jobId) {
+        return localResourceCleaner.cleanupAsync(jobId);
     }
 
     private void markJobAsClean(JobID jobId) {
