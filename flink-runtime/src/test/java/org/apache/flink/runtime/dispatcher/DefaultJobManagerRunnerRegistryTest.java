@@ -37,15 +37,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * {@code JobManagerRunnerRegistryTest} tests the functionality of {@link JobManagerRunnerRegistry}.
+ * {@code DefaultJobManagerRunnerRegistryTest} tests the functionality of {@link
+ * DefaultJobManagerRunnerRegistry}.
  */
-public class JobManagerRunnerRegistryTest {
+public class DefaultJobManagerRunnerRegistryTest {
 
     private JobManagerRunnerRegistry testInstance;
 
     @BeforeEach
     public void setup() {
-        testInstance = new JobManagerRunnerRegistry(4);
+        testInstance = new DefaultJobManagerRunnerRegistry(4);
     }
 
     @Test

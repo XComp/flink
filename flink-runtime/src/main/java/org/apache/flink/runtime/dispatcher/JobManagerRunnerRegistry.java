@@ -18,46 +18,27 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.FutureUtils;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 /** {@code JobManagerRunner} collects running jobs represented by {@link JobManagerRunner}. */
-public class JobManagerRunnerRegistry implements LocallyCleanableResource {
+public interface JobManagerRunnerRegistry extends LocallyCleanableResource {
 
-    @VisibleForTesting final Map<JobID, JobManagerRunner> jobManagerRunners;
+    /**
+     * Checks whether a {@link JobManagerRunner} is registered under the given {@link JobID}.
+     *
+     * @param jobId The {@code JobID} to check.
+     * @return {@code true}, if a {@code JobManagerRunner} is registered; {@code false} otherwise.
+     */
+    boolean isRegistered(JobID jobId);
 
-    public JobManagerRunnerRegistry(int initialCapacity) {
-        Preconditions.checkArgument(initialCapacity > 0);
-        jobManagerRunners = new HashMap<>(initialCapacity);
-    }
-
-    public boolean isRegistered(JobID jobId) {
-        return jobManagerRunners.containsKey(jobId);
-    }
-
-    public void register(JobManagerRunner jobManagerRunner) {
-        Preconditions.checkArgument(
-                !isRegistered(jobManagerRunner.getJobID()),
-                "A job with the ID %s is already registered.",
-                jobManagerRunner.getJobID());
-        this.jobManagerRunners.put(jobManagerRunner.getJobID(), jobManagerRunner);
-    }
+    /** Registers the given {@link JobManagerRunner} instance. */
+    void register(JobManagerRunner jobManagerRunner);
 
     /**
      * Returns the {@link JobManagerRunner} for the given {@code JobID}.
@@ -66,60 +47,20 @@ public class JobManagerRunnerRegistry implements LocallyCleanableResource {
      *     {@code JobManagerRunner}.
      * @see #isRegistered(JobID)
      */
-    public JobManagerRunner get(JobID jobId) {
-        assertJobRegistered(jobId);
-        return this.jobManagerRunners.get(jobId);
-    }
+    JobManagerRunner get(JobID jobId);
 
-    public int size() {
-        return this.jobManagerRunners.size();
-    }
+    /** Returns the number of {@link JobManagerRunner} instances currently being registered. */
+    int size();
 
-    public Set<JobID> getRunningJobIds() {
-        return new HashSet<>(this.jobManagerRunners.keySet());
-    }
+    /** Returns {@link JobID} instances of registered {@link JobManagerRunner} instances. */
+    Set<JobID> getRunningJobIds();
 
-    public Collection<JobManagerRunner> getJobManagerRunners() {
-        return new ArrayList<>(this.jobManagerRunners.values());
-    }
+    /** Returns the registered {@link JobManagerRunner} instances. */
+    Collection<JobManagerRunner> getJobManagerRunners();
 
-    @Override
-    public void localCleanup(JobID jobId) throws IOException {
-        cleanup(jobId);
-    }
-
-    @Override
-    public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor unusedExecutor) {
-        return cleanupAsync(jobId);
-    }
-
-    private void cleanup(JobID jobId) throws IOException {
-        if (isRegistered(jobId)) {
-            try {
-                unregister(jobId).close();
-            } catch (Exception e) {
-                ExceptionUtils.rethrowIOException(e);
-            }
-        }
-    }
-
-    private CompletableFuture<Void> cleanupAsync(JobID jobId) {
-        if (!isRegistered(jobId)) {
-            return FutureUtils.completedVoidFuture();
-        }
-
-        return unregister(jobId).closeAsync();
-    }
-
-    public JobManagerRunner unregister(JobID jobId) {
-        assertJobRegistered(jobId);
-        return this.jobManagerRunners.remove(jobId);
-    }
-
-    private void assertJobRegistered(JobID jobId) {
-        if (!isRegistered(jobId)) {
-            throw new NoSuchElementException(
-                    "There is no running job registered for the job ID " + jobId);
-        }
-    }
+    /**
+     * Unregistered the {@link JobManagerRunner} with the given {@code JobID}. {@code null} is
+     * returned if there's no {@code JobManagerRunner} registered for the given {@link JobID}.
+     */
+    JobManagerRunner unregister(JobID jobId);
 }
