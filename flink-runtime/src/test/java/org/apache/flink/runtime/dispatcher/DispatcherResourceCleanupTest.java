@@ -212,7 +212,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerCleanupWhenJobFinished() throws Exception {
+    public void testGlobalCleanupWhenJobFinished() throws Exception {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
 
@@ -231,7 +231,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerCleanupWhenJobNotFinished() throws Exception {
+    public void testLocalCleanupWhenJobNotFinished() throws Exception {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
 
@@ -395,24 +395,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         }
 
         assertGlobalCleanupTriggered(jobId);
-    }
-
-    @Test
-    public void testHaDataCleanupWhenJobFinished() throws Exception {
-        TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
-        TestingJobManagerRunner jobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        finishJob(jobManagerRunner);
-        assertGlobalCleanupTriggered(jobId);
-    }
-
-    @Test
-    public void testHaDataCleanupWhenJobNotFinished() throws Exception {
-        TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
-        TestingJobManagerRunner jobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        suspendJob(jobManagerRunner);
-        assertLocalCleanupTriggered(jobId);
     }
 
     private void finishJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
