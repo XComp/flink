@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
-import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -46,9 +45,7 @@ import java.util.UUID;
  * </ul>
  */
 public interface HighAvailabilityServices
-        extends ClientHighAvailabilityServices,
-                LocallyCleanableResource,
-                GloballyCleanableResource {
+        extends ClientHighAvailabilityServices, GloballyCleanableResource {
 
     // ------------------------------------------------------------------------
     //  Constants
@@ -246,7 +243,4 @@ public interface HighAvailabilityServices
 
     @Override
     default void globalCleanup(JobID jobId) throws Exception {}
-
-    @Override
-    default void localCleanup(JobID jobId) throws Exception {}
 }

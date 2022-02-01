@@ -179,7 +179,7 @@ public class DispatcherResourceCleanerFactoryTest {
         assertThat(jobManagerRunnerRegistry.getLocalCleanupFuture()).isCompleted();
         assertThat(jobGraphWriter.getLocalCleanupFuture()).isCompleted();
         assertThat(blobServer.getLocalCleanupFuture()).isCompleted();
-        assertThat(highAvailabilityServices.getLocalCleanupFuture()).isCompleted();
+        assertThat(highAvailabilityServices.getLocalCleanupFuture()).isNotCompleted();
     }
 
     private void assertGlobalCleanupTriggered() {
