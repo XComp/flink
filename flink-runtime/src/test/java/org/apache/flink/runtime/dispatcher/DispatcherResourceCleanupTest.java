@@ -222,6 +222,17 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertGlobalCleanupTriggered(jobId);
     }
 
+    @Test
+    public void testGlobalCleanupWhenJobCanceled() throws Exception {
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitJob();
+
+        // complete the job
+        cancelJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        assertGlobalCleanupTriggered(jobId);
+    }
+
     private CompletableFuture<Acknowledge> submitJob() {
         return dispatcherGateway.submitJob(jobGraph, timeout);
     }
@@ -404,6 +415,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.SUSPENDED);
     }
 
+    private void cancelJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
+        terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.CANCELED);
+    }
+
     private void terminateJobWithState(
             TestingJobManagerRunner takeCreatedJobManagerRunner, JobStatus state) {
         takeCreatedJobManagerRunner.completeResultFuture(
@@ -508,24 +523,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                     ? Collections.singleton(actualJobResultEntry.getJobResult())
                     : Collections.emptySet();
         }
-    }
-
-    @Test
-    public void testHABlobsAreRemovedIfHAJobGraphRemovalSucceeds() throws Exception {
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob();
-
-        ArchivedExecutionGraph executionGraph =
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(jobId)
-                        .setState(JobStatus.CANCELED)
-                        .build();
-
-        final TestingJobManagerRunner testingJobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        testingJobManagerRunner.completeResultFuture(new ExecutionGraphInfo(executionGraph));
-
-        assertGlobalCleanupTriggered(jobId);
     }
 
     private void assertLocalCleanupTriggered(JobID jobId)
