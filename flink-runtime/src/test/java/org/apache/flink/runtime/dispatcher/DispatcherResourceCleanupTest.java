@@ -259,7 +259,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerCleanupWhenClosingDispatcher() throws Exception {
+    public void testLocalCleanupWhenClosingDispatcher() throws Exception {
         startDispatcherAndSubmitJob();
 
         dispatcher.closeAsync().get();
