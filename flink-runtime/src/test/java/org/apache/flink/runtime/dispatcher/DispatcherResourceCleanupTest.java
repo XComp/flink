@@ -243,9 +243,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertLocalCleanupTriggered(jobId);
     }
 
-    /** Tests that the uploaded blobs are being cleaned up in case of a job submission failure. */
     @Test
-    public void testBlobServerCleanupWhenJobSubmissionFails() throws Exception {
+    public void testGlobalCleanupWhenJobSubmissionFails() throws Exception {
         startDispatcher(new FailingJobManagerRunnerFactory(new FlinkException("Test exception")));
         final CompletableFuture<Acknowledge> submissionFuture = submitJob();
 
