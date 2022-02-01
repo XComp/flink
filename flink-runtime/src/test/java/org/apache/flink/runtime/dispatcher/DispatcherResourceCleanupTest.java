@@ -268,7 +268,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testHACleanupWhenJobFinishedWhileClosingDispatcher() throws Exception {
+    public void testGlobalCleanupWhenJobFinishedWhileClosingDispatcher() throws Exception {
         final TestingJobManagerRunner testingJobManagerRunner =
                 TestingJobManagerRunner.newBuilder()
                         .setBlockingTermination(true)
