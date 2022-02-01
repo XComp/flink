@@ -29,7 +29,6 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingResourceCleanerFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -40,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
@@ -72,15 +70,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -93,7 +88,6 @@ import static org.apache.flink.runtime.dispatcher.AbstractDispatcherTest.awaitSt
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests the resource cleanup by the {@link Dispatcher}. */
@@ -115,10 +109,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private JobGraph jobGraph;
 
-    private JobResultStore jobResultStore;
-
-    private OneShotLatch clearedJobLatch;
-
     private TestingDispatcher dispatcher;
 
     private DispatcherGateway dispatcherGateway;
@@ -138,9 +128,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         jobId = jobGraph.getJobID();
 
-        clearedJobLatch = new OneShotLatch();
-        jobResultStore = new SingleJobResultStore(jobId, clearedJobLatch);
-
         globalCleanupFuture = new CompletableFuture<>();
         localCleanupFuture = new CompletableFuture<>();
 
@@ -157,40 +144,52 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob(
             int numBlockingJobManagerRunners) throws Exception {
+        return startDispatcherAndSubmitJob(
+                createTestingDispatcherBuilder(), numBlockingJobManagerRunners);
+    }
+
+    private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob(
+            TestingDispatcher.Builder dispatcherBuilder, int numBlockingJobManagerRunners)
+            throws Exception {
         final TestingJobManagerRunnerFactory testingJobManagerRunnerFactoryNG =
                 new TestingJobManagerRunnerFactory(numBlockingJobManagerRunners);
-        startDispatcher(testingJobManagerRunnerFactoryNG);
+        startDispatcher(dispatcherBuilder, testingJobManagerRunnerFactoryNG);
         submitJobAndWait();
 
         return testingJobManagerRunnerFactoryNG;
     }
 
     private void startDispatcher(JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
-        final JobManagerRunnerRegistry jobManagerRunnerRegistry =
-                new DefaultJobManagerRunnerRegistry(2);
-        dispatcher =
-                TestingDispatcher.builder()
-                        .withRpcService(rpcService)
-                        .withJobResultStore(jobResultStore)
-                        .withJobManagerRunnerRegistry(jobManagerRunnerRegistry)
-                        .withBlobServer(blobServer)
-                        .withFatalErrorHandler(
-                                testingFatalErrorHandlerResource.getFatalErrorHandler())
-                        .withJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .withResourceCleanerFactory(
-                                new TestingResourceCleanerFactory()
-                                        // JobManagerRunnerRegistry needs to be added explicitly
-                                        // because cleaning it will trigger the closeAsync latch
-                                        // provided by TestingJobManagerRunner
-                                        .withLocallyCleanableResource(jobManagerRunnerRegistry)
-                                        .withGloballyCleanableResource(
-                                                globalCleanupFuture::complete)
-                                        .withLocallyCleanableResource(localCleanupFuture::complete))
-                        .build();
+        startDispatcher(createTestingDispatcherBuilder(), jobManagerRunnerFactory);
+    }
+
+    private void startDispatcher(
+            TestingDispatcher.Builder dispatcherBuilder,
+            JobManagerRunnerFactory jobManagerRunnerFactory)
+            throws Exception {
+        dispatcher = dispatcherBuilder.withJobManagerRunnerFactory(jobManagerRunnerFactory).build();
 
         dispatcher.start();
 
         dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+    }
+
+    private TestingDispatcher.Builder createTestingDispatcherBuilder() {
+        final JobManagerRunnerRegistry jobManagerRunnerRegistry =
+                new DefaultJobManagerRunnerRegistry(2);
+        return TestingDispatcher.builder()
+                .withRpcService(rpcService)
+                .withBlobServer(blobServer)
+                .withJobManagerRunnerRegistry(jobManagerRunnerRegistry)
+                .withFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())
+                .withResourceCleanerFactory(
+                        new TestingResourceCleanerFactory()
+                                // JobManagerRunnerRegistry needs to be added explicitly
+                                // because cleaning it will trigger the closeAsync latch
+                                // provided by TestingJobManagerRunner
+                                .withLocallyCleanableResource(jobManagerRunnerRegistry)
+                                .withGloballyCleanableResource(globalCleanupFuture::complete)
+                                .withLocallyCleanableResource(localCleanupFuture::complete));
     }
 
     @After
@@ -310,35 +309,82 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertGlobalCleanupTriggered(jobId);
     }
 
-    /**
-     * Tests that the {@link JobResultStore} entries are marked as clean after the job reached a
-     * terminal state.
-     */
     @Test
-    public void testJobResultStoreCleanup() throws Exception {
+    public void testJobBeingMarkedAsDirtyBeforeCleanup() throws Exception {
+        final OneShotLatch markAsDirtyLatch = new OneShotLatch();
+
+        final TestingDispatcher.Builder dispatcherBuilder =
+                createTestingDispatcherBuilder()
+                        .withJobResultStore(
+                                TestingJobResultStore.builder()
+                                        .withCreateDirtyResultConsumer(
+                                                ignoredJobResultEntry -> {
+                                                    try {
+                                                        markAsDirtyLatch.await();
+                                                    } catch (InterruptedException e) {
+                                                        throw new RuntimeException(e);
+                                                    }
+                                                })
+                                        .build());
+
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob();
+                startDispatcherAndSubmitJob(dispatcherBuilder, 0);
 
-        final JobResult jobResult =
-                TestingJobResultStore.createJobResult(jobId, ApplicationStatus.UNKNOWN);
+        finishJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
 
-        jobResultStore.createDirtyResult(new JobResultEntry(jobResult));
-        assertTrue(jobResultStore.hasJobResultEntry(jobId));
+        assertThatNoCleanupWasTriggered();
 
-        final TestingJobManagerRunner testingJobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        testingJobManagerRunner.completeResultFuture(
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder()
-                                .setState(JobStatus.FINISHED)
-                                .setJobID(jobId)
-                                .build()));
+        markAsDirtyLatch.trigger();
 
-        // wait for the clearing
-        clearedJobLatch.await();
+        assertGlobalCleanupTriggered(jobId);
+    }
 
-        assertTrue(jobResultStore.hasJobResultEntry(jobId));
-        assertTrue(jobResultStore.getDirtyResults().isEmpty());
+    @Test
+    public void testJobBeingMarkedAsCleanAfterCleanup() throws Exception {
+        final CompletableFuture<JobID> markAsCleanFuture = new CompletableFuture<>();
+
+        final JobResultStore jobResultStore =
+                TestingJobResultStore.builder()
+                        .withMarkResultAsCleanConsumer(markAsCleanFuture::complete)
+                        .build();
+        final OneShotLatch localCleanupLatch = new OneShotLatch();
+        final OneShotLatch globalCleanupLatch = new OneShotLatch();
+        final TestingResourceCleanerFactory resourceCleanerFactory =
+                new TestingResourceCleanerFactory()
+                        .withLocallyCleanableResource(
+                                ignoredJobId -> {
+                                    try {
+                                        localCleanupLatch.await();
+                                    } catch (InterruptedException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                })
+                        .withGloballyCleanableResource(
+                                ignoredJobId -> {
+                                    try {
+                                        globalCleanupLatch.await();
+                                    } catch (InterruptedException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                });
+
+        final TestingDispatcher.Builder dispatcherBuilder =
+                createTestingDispatcherBuilder()
+                        .withJobResultStore(jobResultStore)
+                        .withResourceCleanerFactory(resourceCleanerFactory);
+
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitJob(dispatcherBuilder, 0);
+
+        finishJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        assertThat(markAsCleanFuture.isDone(), is(false));
+
+        localCleanupLatch.trigger();
+        assertThat(markAsCleanFuture.isDone(), is(false));
+        globalCleanupLatch.trigger();
+
+        assertThat(markAsCleanFuture.get(), is(jobId));
     }
 
     /**
@@ -466,65 +512,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         dispatcherTerminationFuture.get();
     }
 
-    private static final class SingleJobResultStore implements JobResultStore {
-
-        private final JobID expectedJobId;
-        @Nullable private JobResultEntry actualJobResultEntry;
-        private boolean isDirty = true;
-
-        private final OneShotLatch clearedJobLatch;
-
-        private SingleJobResultStore(JobID expectedJobId, OneShotLatch clearedJobLatch) {
-            this.expectedJobId = expectedJobId;
-            this.clearedJobLatch = clearedJobLatch;
-        }
-
-        @Override
-        public void createDirtyResult(JobResultEntry jobResultEntry) throws IOException {
-            checkJobId(jobResultEntry.getJobId());
-            this.actualJobResultEntry = jobResultEntry;
-        }
-
-        private void checkJobId(JobID jobID) {
-            Preconditions.checkArgument(expectedJobId.equals(jobID));
-        }
-
-        @Override
-        public void markResultAsClean(JobID jobId) throws IOException {
-            checkJobId(jobId);
-            Preconditions.checkNotNull(actualJobResultEntry);
-            isDirty = false;
-            clearedJobLatch.trigger();
-        }
-
-        @Override
-        public boolean hasDirtyJobResultEntry(JobID jobId) throws IOException {
-            if (actualJobResultEntry == null) {
-                return false;
-            }
-
-            checkJobId(jobId);
-            return isDirty;
-        }
-
-        @Override
-        public boolean hasCleanJobResultEntry(JobID jobId) throws IOException {
-            if (actualJobResultEntry == null) {
-                return false;
-            }
-
-            checkJobId(jobId);
-            return !isDirty;
-        }
-
-        @Override
-        public Set<JobResult> getDirtyResults() throws IOException {
-            return actualJobResultEntry != null && isDirty
-                    ? Collections.singleton(actualJobResultEntry.getJobResult())
-                    : Collections.emptySet();
-        }
-    }
-
     private void assertLocalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
         assertThat(localCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
@@ -539,7 +526,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     @Test
     public void testFatalErrorIfJobCannotBeMarkedDirtyInJobResultStore() throws Exception {
-        jobResultStore =
+        final JobResultStore jobResultStore =
                 TestingJobResultStore.builder()
                         .withCreateDirtyResultConsumer(
                                 jobResult -> {
@@ -548,7 +535,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                         .build();
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob();
+                startDispatcherAndSubmitJob(
+                        createTestingDispatcherBuilder().withJobResultStore(jobResultStore), 0);
 
         ArchivedExecutionGraph executionGraph =
                 new ArchivedExecutionGraphBuilder()
@@ -571,7 +559,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     @Test
     public void testErrorHandlingIfJobCannotBeMarkedAsCleanInJobResultStore() throws Exception {
         final CompletableFuture<JobResultEntry> dirtyJobFuture = new CompletableFuture<>();
-        jobResultStore =
+        final JobResultStore jobResultStore =
                 TestingJobResultStore.builder()
                         .withCreateDirtyResultConsumer(dirtyJobFuture::complete)
                         .withMarkResultAsCleanConsumer(
@@ -581,7 +569,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                         .build();
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob();
+                startDispatcherAndSubmitJob(
+                        createTestingDispatcherBuilder().withJobResultStore(jobResultStore), 0);
 
         ArchivedExecutionGraph executionGraph =
                 new ArchivedExecutionGraphBuilder()
