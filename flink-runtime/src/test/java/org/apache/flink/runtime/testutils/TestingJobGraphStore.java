@@ -30,6 +30,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,9 +55,9 @@ public class TestingJobGraphStore implements JobGraphStore {
 
     private final ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer;
 
-    private final ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer;
+    private final ThrowingConsumer<JobID, ? extends IOException> globalCleanupConsumer;
 
-    private final ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer;
+    private final ThrowingConsumer<JobID, ? extends IOException> localCleanupConsumer;
 
     private boolean started;
 
@@ -68,8 +69,8 @@ public class TestingJobGraphStore implements JobGraphStore {
             BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
                     recoverJobGraphFunction,
             ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
-            ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer,
-            ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer,
+            ThrowingConsumer<JobID, ? extends IOException> globalCleanupConsumer,
+            ThrowingConsumer<JobID, ? extends IOException> localCleanupConsumer,
             Collection<JobGraph> initialJobGraphs) {
         this.startConsumer = startConsumer;
         this.stopRunnable = stopRunnable;
@@ -110,14 +111,14 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public synchronized void globalCleanup(JobID jobId) throws Exception {
+    public synchronized void globalCleanup(JobID jobId) throws IOException {
         verifyIsStarted();
         globalCleanupConsumer.accept(jobId);
         storedJobs.remove(jobId);
     }
 
     @Override
-    public synchronized void localCleanup(JobID jobId) throws Exception {
+    public synchronized void localCleanup(JobID jobId) throws IOException {
         verifyIsStarted();
         localCleanupConsumer.accept(jobId);
     }
@@ -156,9 +157,10 @@ public class TestingJobGraphStore implements JobGraphStore {
 
         private ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer = ignored -> {};
 
-        private ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer = ignored -> {};
+        private ThrowingConsumer<JobID, ? extends IOException> globalCleanupConsumer =
+                ignored -> {};
 
-        private ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer = ignored -> {};
+        private ThrowingConsumer<JobID, ? extends IOException> localCleanupConsumer = ignored -> {};
 
         private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
 
@@ -198,13 +200,13 @@ public class TestingJobGraphStore implements JobGraphStore {
         }
 
         public Builder setGlobalCleanupConsumer(
-                ThrowingConsumer<JobID, ? extends Exception> globalCleanupConsumer) {
+                ThrowingConsumer<JobID, ? extends IOException> globalCleanupConsumer) {
             this.globalCleanupConsumer = globalCleanupConsumer;
             return this;
         }
 
         public Builder setLocalCleanupConsumer(
-                ThrowingConsumer<JobID, ? extends Exception> localCleanupConsumer) {
+                ThrowingConsumer<JobID, ? extends IOException> localCleanupConsumer) {
             this.localCleanupConsumer = localCleanupConsumer;
             return this;
         }

@@ -23,6 +23,8 @@ import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import java.io.IOException;
+
 /** Allows to store and remove job graphs. */
 public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleanableResource {
     /**
@@ -39,11 +41,11 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      * JobGraphStore}.
      *
      * @param jobId specifying the job to release the locks for
-     * @throws Exception if the locks cannot be released
+     * @throws IOException if the locks cannot be released
      */
     @Override
-    default void localCleanup(JobID jobId) throws Exception {}
+    default void localCleanup(JobID jobId) throws IOException {}
 
     @Override
-    default void globalCleanup(JobID jobId) throws Exception {}
+    default void globalCleanup(JobID jobId) throws IOException {}
 }

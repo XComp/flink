@@ -238,7 +238,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void globalCleanup(JobID jobId) throws Exception {
+    public void globalCleanup(JobID jobId) throws IOException {
         checkNotNull(jobId, "Job ID");
         String name = jobGraphStoreUtil.jobIDToName(jobId);
 
@@ -247,29 +247,45 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
         synchronized (lock) {
             verifyIsRunning();
             if (addedJobGraphs.contains(jobId)) {
-                if (jobGraphStateHandleStore.releaseAndTryRemove(name)) {
-                    addedJobGraphs.remove(jobId);
-                } else {
-                    throw new FlinkException(
-                            String.format(
-                                    "Could not remove job graph with job id %s from %s.",
-                                    jobId, jobGraphStateHandleStore));
-                }
+                releaseAndRemoveOrThrowIOException(jobId, name);
+                addedJobGraphs.remove(jobId);
             }
         }
 
         LOG.info("Removed job graph {} from {}.", jobId, jobGraphStateHandleStore);
     }
 
+    @GuardedBy("lock")
+    private void releaseAndRemoveOrThrowIOException(JobID jobId, String jobName)
+            throws IOException {
+        boolean success = false;
+        try {
+            success = jobGraphStateHandleStore.releaseAndTryRemove(jobName);
+        } catch (Exception e) {
+            ExceptionUtils.rethrowIOException(e);
+        }
+
+        if (!success) {
+            throw new IOException(
+                    String.format(
+                            "Could not remove job graph with job id %s from %s.",
+                            jobId, jobGraphStateHandleStore));
+        }
+    }
+
     @Override
-    public void localCleanup(JobID jobId) throws Exception {
+    public void localCleanup(JobID jobId) throws IOException {
         checkNotNull(jobId, "Job ID");
 
         LOG.debug("Releasing job graph {} from {}.", jobId, jobGraphStateHandleStore);
 
         synchronized (lock) {
             verifyIsRunning();
-            jobGraphStateHandleStore.release(jobGraphStoreUtil.jobIDToName(jobId));
+            try {
+                jobGraphStateHandleStore.release(jobGraphStoreUtil.jobIDToName(jobId));
+            } catch (Exception e) {
+                ExceptionUtils.rethrowIOException(e);
+            }
             addedJobGraphs.remove(jobId);
         }
 

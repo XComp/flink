@@ -31,6 +31,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -206,9 +207,13 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public void globalCleanup(JobID jobID) throws Exception {
+    public void globalCleanup(JobID jobID) throws IOException {
         logger.info("Clean up the high availability data for job {}.", jobID);
-        internalCleanupJobData(jobID);
+        try {
+            internalCleanupJobData(jobID);
+        } catch (Exception e) {
+            ExceptionUtils.rethrowIOException(e);
+        }
         logger.info("Finished cleaning up the high availability data for job {}.", jobID);
     }
 

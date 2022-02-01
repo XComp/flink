@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -35,15 +36,15 @@ import java.util.concurrent.Executor;
 @FunctionalInterface
 public interface GloballyCleanableResource {
 
-    void globalCleanup(JobID jobId) throws Throwable;
+    void globalCleanup(JobID jobId) throws IOException;
 
     default CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor cleanupExecutor) {
         return CompletableFuture.runAsync(
                 () -> {
                     try {
                         globalCleanup(jobId);
-                    } catch (Throwable t) {
-                        throw new CompletionException("Asynchronous global cleanup failed", t);
+                    } catch (IOException e) {
+                        throw new CompletionException("Asynchronous global cleanup failed", e);
                     }
                 },
                 cleanupExecutor);

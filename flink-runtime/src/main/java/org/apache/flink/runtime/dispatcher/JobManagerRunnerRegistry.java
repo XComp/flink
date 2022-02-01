@@ -23,9 +23,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,7 +84,7 @@ public class JobManagerRunnerRegistry
     }
 
     @Override
-    public void globalCleanup(JobID jobId) throws Exception {
+    public void globalCleanup(JobID jobId) throws IOException {
         cleanup(jobId);
     }
 
@@ -92,7 +94,7 @@ public class JobManagerRunnerRegistry
     }
 
     @Override
-    public void localCleanup(JobID jobId) throws Exception {
+    public void localCleanup(JobID jobId) throws IOException {
         cleanup(jobId);
     }
 
@@ -101,9 +103,13 @@ public class JobManagerRunnerRegistry
         return cleanupAsync(jobId);
     }
 
-    private void cleanup(JobID jobId) throws Exception {
+    private void cleanup(JobID jobId) throws IOException {
         if (isRegistered(jobId)) {
-            unregister(jobId).close();
+            try {
+                unregister(jobId).close();
+            } catch (Exception e) {
+                ExceptionUtils.rethrowIOException(e);
+            }
         }
     }
 

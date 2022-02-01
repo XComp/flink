@@ -29,6 +29,7 @@ import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
@@ -173,8 +174,10 @@ public class JobManagerRunnerRegistryTest {
         jobManagerRunner.completeTerminationFutureExceptionally(expectedException);
 
         assertThatThrownBy(() -> callback.acceptThrows(jobManagerRunner.getJobID()))
-                .isInstanceOf(FlinkException.class)
-                .hasCause(expectedException);
+                .isInstanceOf(IOException.class)
+                .hasCauseExactlyInstanceOf(FlinkException.class)
+                .getRootCause()
+                .isEqualTo(expectedException);
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
     }
 

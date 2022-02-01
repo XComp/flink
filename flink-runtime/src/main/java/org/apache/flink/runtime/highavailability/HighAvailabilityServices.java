@@ -242,5 +242,5 @@ public interface HighAvailabilityServices
     void closeAndCleanupAllData() throws Exception;
 
     @Override
-    default void globalCleanup(JobID jobId) throws Exception {}
+    default void globalCleanup(JobID jobId) throws IOException {}
 }

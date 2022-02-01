@@ -286,7 +286,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public void globalCleanup(JobID jobID) throws Exception {
+    public void globalCleanup(JobID jobID) throws IOException {
         Optional.ofNullable(globalCleanupFuture).ifPresent(f -> f.complete(jobID));
     }
 }

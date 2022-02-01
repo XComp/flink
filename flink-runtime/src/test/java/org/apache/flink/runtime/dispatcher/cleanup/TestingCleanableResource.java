@@ -21,29 +21,31 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import java.io.IOException;
+
 /**
  * {@code TestingCleanableResource} provides methods for testing the callbacks of {@link
  * LocallyCleanableResource}.
  */
 class TestingCleanableResource implements LocallyCleanableResource, GloballyCleanableResource {
 
-    private final ThrowingConsumer<JobID, Exception> localCleanupConsumer;
-    private final ThrowingConsumer<JobID, Exception> globalCleanupConsumer;
+    private final ThrowingConsumer<JobID, IOException> localCleanupConsumer;
+    private final ThrowingConsumer<JobID, IOException> globalCleanupConsumer;
 
     private TestingCleanableResource(
-            ThrowingConsumer<JobID, Exception> localCleanupConsumer,
-            ThrowingConsumer<JobID, Exception> globalCleanupConsumer) {
+            ThrowingConsumer<JobID, IOException> localCleanupConsumer,
+            ThrowingConsumer<JobID, IOException> globalCleanupConsumer) {
         this.localCleanupConsumer = localCleanupConsumer;
         this.globalCleanupConsumer = globalCleanupConsumer;
     }
 
     @Override
-    public void localCleanup(JobID jobId) throws Exception {
+    public void localCleanup(JobID jobId) throws IOException {
         localCleanupConsumer.accept(jobId);
     }
 
     @Override
-    public void globalCleanup(JobID jobId) throws Exception {
+    public void globalCleanup(JobID jobId) throws IOException {
         globalCleanupConsumer.accept(jobId);
     }
 
@@ -53,11 +55,11 @@ class TestingCleanableResource implements LocallyCleanableResource, GloballyClea
 
     static class Builder {
 
-        private ThrowingConsumer<JobID, Exception> localCleanupConsumer =
+        private ThrowingConsumer<JobID, IOException> localCleanupConsumer =
                 jobId -> {
                     throw new UnsupportedOperationException("Local cleanup is not supported.");
                 };
-        private ThrowingConsumer<JobID, Exception> globalCleanupConsumer =
+        private ThrowingConsumer<JobID, IOException> globalCleanupConsumer =
                 jobId -> {
                     throw new UnsupportedOperationException("Global cleanup is not supported.");
                 };
@@ -65,13 +67,13 @@ class TestingCleanableResource implements LocallyCleanableResource, GloballyClea
         private Builder() {}
 
         public Builder withLocalCleanupConsumer(
-                ThrowingConsumer<JobID, Exception> localCleanupConsumer) {
+                ThrowingConsumer<JobID, IOException> localCleanupConsumer) {
             this.localCleanupConsumer = localCleanupConsumer;
             return this;
         }
 
         public Builder withGlobalCleanupConsumer(
-                ThrowingConsumer<JobID, Exception> globalCleanupConsumer) {
+                ThrowingConsumer<JobID, IOException> globalCleanupConsumer) {
             this.globalCleanupConsumer = globalCleanupConsumer;
             return this;
         }

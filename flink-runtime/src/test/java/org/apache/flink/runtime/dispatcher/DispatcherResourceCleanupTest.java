@@ -724,7 +724,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private static final class TestingBlobServer extends BlobServer {
 
-        private final ThrowingConsumer<JobID, Exception> globalCleanupConsumer;
+        private final ThrowingConsumer<JobID, IOException> globalCleanupConsumer;
         private final ThrowingConsumer<JobID, IOException> localCleanupConsumer;
 
         /**
@@ -743,7 +743,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 Configuration config,
                 File storageDirectory,
                 BlobStore blobStore,
-                ThrowingConsumer<JobID, Exception> globalCleanupConsumer,
+                ThrowingConsumer<JobID, IOException> globalCleanupConsumer,
                 ThrowingConsumer<JobID, IOException> localCleanupConsumer)
                 throws IOException {
             super(config, storageDirectory, blobStore);
@@ -752,7 +752,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         }
 
         @Override
-        public void globalCleanup(JobID jobId) throws Exception {
+        public void globalCleanup(JobID jobId) throws IOException {
             super.globalCleanup(jobId);
             globalCleanupConsumer.accept(jobId);
         }

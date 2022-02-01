@@ -266,12 +266,12 @@ public class BlobServerDeleteTest extends TestLogger {
     }
 
     @Test
-    public void testJobCleanup() throws Exception {
+    public void testJobCleanup() throws IOException {
         testJobCleanup(TRANSIENT_BLOB);
     }
 
     @Test
-    public void testJobCleanupHa() throws Exception {
+    public void testJobCleanupHa() throws IOException {
         testJobCleanup(PERMANENT_BLOB);
     }
 
@@ -281,7 +281,7 @@ public class BlobServerDeleteTest extends TestLogger {
      *
      * @param blobType whether the BLOB should become permanent or transient
      */
-    private void testJobCleanup(BlobKey.BlobType blobType) throws Exception {
+    private void testJobCleanup(BlobKey.BlobType blobType) throws IOException {
         JobID jobId1 = new JobID();
         JobID jobId2 = new JobID();
 

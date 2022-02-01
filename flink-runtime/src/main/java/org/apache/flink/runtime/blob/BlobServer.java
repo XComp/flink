@@ -30,7 +30,6 @@ import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -897,16 +896,16 @@ public class BlobServer extends Thread
      * Removes all BLOBs from local and HA store belonging to the given {@link JobID}.
      *
      * @param jobId ID of the job this blob belongs to
-     * @throws Exception if the cleanup fails.
+     * @throws IOException if the cleanup fails.
      */
     @Override
-    public void globalCleanup(JobID jobId) throws Exception {
+    public void globalCleanup(JobID jobId) throws IOException {
         checkNotNull(jobId);
 
         readWriteLock.writeLock().lock();
 
         try {
-            Exception exception = null;
+            IOException exception = null;
 
             try {
                 localCleanup(jobId);
@@ -917,18 +916,18 @@ public class BlobServer extends Thread
             if (!blobStore.deleteAll(jobId)) {
                 exception =
                         ExceptionUtils.firstOrSuppressed(
-                                new FlinkException(
+                                new IOException(
                                         "Error while cleaning up the BlobStore for job " + jobId),
                                 exception);
             }
 
-            ExceptionUtils.tryRethrowException(exception);
+            ExceptionUtils.tryRethrowIOException(exception);
         } finally {
             readWriteLock.writeLock().unlock();
         }
     }
 
-    public void retainJobs(Collection<JobID> jobsToRetain) throws Exception {
+    public void retainJobs(Collection<JobID> jobsToRetain) throws IOException {
         if (storageDir.deref().exists()) {
             final Set<JobID> jobsToRemove = BlobUtils.listExistingJobs(storageDir.deref().toPath());
 
