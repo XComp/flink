@@ -23,9 +23,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.Executors;
-import org.apache.flink.util.function.BiFunctionWithException;
 
-import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +32,6 @@ import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -136,35 +133,16 @@ public class JobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testSuccessfulGlobalCleanup() throws Throwable {
-        testSuccessfulSynchronousCleanup(testInstance::globalCleanup);
-    }
-
-    @Test
     public void testSuccessfulLocalCleanup() throws Throwable {
-        testSuccessfulSynchronousCleanup(testInstance::localCleanup);
-    }
-
-    private void testSuccessfulSynchronousCleanup(ThrowingConsumer<JobID> callback)
-            throws Throwable {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
-        callback.acceptThrows(jobManagerRunner.getJobID());
+        testInstance.localCleanup(jobManagerRunner.getJobID());
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
         assertThat(jobManagerRunner.getTerminationFuture()).isCompleted();
     }
 
     @Test
-    public void testFailingGlobalCleanup() {
-        testFailingSynchronousCleanup(testInstance::globalCleanup);
-    }
-
-    @Test
     public void testFailingLocalCleanup() {
-        testFailingSynchronousCleanup(testInstance::localCleanup);
-    }
-
-    private void testFailingSynchronousCleanup(ThrowingConsumer<JobID> callback) {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
@@ -173,7 +151,7 @@ public class JobManagerRunnerRegistryTest {
         final RuntimeException expectedException = new RuntimeException("Expected exception");
         jobManagerRunner.completeTerminationFutureExceptionally(expectedException);
 
-        assertThatThrownBy(() -> callback.acceptThrows(jobManagerRunner.getJobID()))
+        assertThatThrownBy(() -> testInstance.localCleanup(jobManagerRunner.getJobID()))
                 .isInstanceOf(IOException.class)
                 .hasCauseExactlyInstanceOf(FlinkException.class)
                 .getRootCause()
@@ -182,39 +160,18 @@ public class JobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testSuccessfulGlobalCleanupAsync() throws Exception {
-        testSuccessfulCleanupAsync(testInstance::globalCleanupAsync);
-    }
-
-    @Test
     public void testSuccessfulLocalCleanupAsync() throws Exception {
-        testSuccessfulCleanupAsync(testInstance::localCleanupAsync);
-    }
-
-    private void testSuccessfulCleanupAsync(
-            BiFunctionWithException<JobID, Executor, CompletableFuture<Void>, Exception> callback)
-            throws Exception {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         final CompletableFuture<Void> cleanupResult =
-                callback.apply(jobManagerRunner.getJobID(), Executors.directExecutor());
+                testInstance.localCleanupAsync(
+                        jobManagerRunner.getJobID(), Executors.directExecutor());
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
         assertThat(cleanupResult).isCompleted();
     }
 
     @Test
-    public void testFailingGlobalCleanupAsync() throws Exception {
-        testFailingCleanupAsync(testInstance::globalCleanupAsync);
-    }
-
-    @Test
     public void testFailingLocalCleanupAsync() throws Exception {
-        testFailingCleanupAsync(testInstance::localCleanupAsync);
-    }
-
-    private void testFailingCleanupAsync(
-            BiFunctionWithException<JobID, Executor, CompletableFuture<Void>, Exception> callback)
-            throws Exception {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
@@ -224,7 +181,8 @@ public class JobManagerRunnerRegistryTest {
         jobManagerRunner.completeTerminationFutureExceptionally(expectedException);
 
         final CompletableFuture<Void> cleanupResult =
-                callback.apply(jobManagerRunner.getJobID(), Executors.directExecutor());
+                testInstance.localCleanupAsync(
+                        jobManagerRunner.getJobID(), Executors.directExecutor());
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
         assertThat(cleanupResult)
                 .isCompletedExceptionally()
@@ -245,20 +203,9 @@ public class JobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testGlobalCleanupAsyncOnUnknownJobId() {
-        assertThat(testInstance.globalCleanupAsync(new JobID(), Executors.directExecutor()))
-                .isCompleted();
-    }
-
-    @Test
     public void testLocalCleanupAsyncOnUnknownJobId() {
         assertThat(testInstance.localCleanupAsync(new JobID(), Executors.directExecutor()))
                 .isCompleted();
-    }
-
-    @Test
-    public void testGlobalCleanupOnUnknownJobId() throws Exception {
-        testInstance.globalCleanup(new JobID());
     }
 
     @Test

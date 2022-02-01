@@ -120,13 +120,6 @@ public class DispatcherResourceCleanerFactoryTest {
         final CompletableFuture<Void> cleanupResultFuture =
                 testInstance.createGlobalResourceCleaner().cleanupAsync(JOB_ID);
 
-        assertGlobalCleanupTriggeredWaitingForJobManagerRunnerRegistry();
-        assertLocalCleanupNotTriggered();
-
-        assertThat(cleanupResultFuture).isNotCompleted();
-
-        jobManagerRunnerRegistry.completeGlobalCleanup();
-
         assertGlobalCleanupTriggered();
         assertLocalCleanupNotTriggered();
 
@@ -152,16 +145,6 @@ public class DispatcherResourceCleanerFactoryTest {
     }
 
     private void assertGlobalCleanupNotTriggered() {
-        assertThat(jobManagerRunnerRegistry.getGlobalCleanupFuture()).isNotDone();
-        assertThat(jobGraphWriter.getGlobalCleanupFuture()).isNotDone();
-        assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
-        assertThat(highAvailabilityServices.getGlobalCleanupFuture()).isNotDone();
-    }
-
-    private void assertGlobalCleanupTriggeredWaitingForJobManagerRunnerRegistry() {
-        assertThat(jobManagerRunnerRegistry.getGlobalCleanupFuture()).isDone();
-
-        // the JobManagerRunnerRegistry needs to be cleaned up first
         assertThat(jobGraphWriter.getGlobalCleanupFuture()).isNotDone();
         assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
         assertThat(highAvailabilityServices.getGlobalCleanupFuture()).isNotDone();
@@ -176,7 +159,6 @@ public class DispatcherResourceCleanerFactoryTest {
     }
 
     private void assertGlobalCleanupTriggered() {
-        assertThat(jobManagerRunnerRegistry.getGlobalCleanupFuture()).isCompleted();
         assertThat(jobGraphWriter.getGlobalCleanupFuture()).isCompleted();
         assertThat(blobServer.getGlobalCleanupFuture()).isCompleted();
         assertThat(highAvailabilityServices.getGlobalCleanupFuture()).isCompleted();
@@ -357,18 +339,11 @@ public class DispatcherResourceCleanerFactoryTest {
     private static class CleanableJobManagerRegistry extends JobManagerRunnerRegistry {
 
         private final CompletableFuture<JobID> localCleanupFuture = new CompletableFuture<>();
-        private final CompletableFuture<JobID> globalCleanupFuture = new CompletableFuture<>();
 
         private final CompletableFuture<Void> localCleanupResultFuture = new CompletableFuture<>();
-        private final CompletableFuture<Void> globalCleanupResultFuture = new CompletableFuture<>();
 
         public CleanableJobManagerRegistry() {
             super(1);
-        }
-
-        @Override
-        public void globalCleanup(JobID jobId) {
-            throw new UnsupportedOperationException("Synchronous globalCleanup is not supported.");
         }
 
         @Override
@@ -383,27 +358,12 @@ public class DispatcherResourceCleanerFactoryTest {
             return localCleanupResultFuture;
         }
 
-        @Override
-        public CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor ignoredExecutor) {
-            globalCleanupFuture.complete(jobId);
-
-            return globalCleanupResultFuture;
-        }
-
         public CompletableFuture<JobID> getLocalCleanupFuture() {
             return localCleanupFuture;
         }
 
-        public CompletableFuture<JobID> getGlobalCleanupFuture() {
-            return globalCleanupFuture;
-        }
-
         public void completeLocalCleanup() {
             localCleanupResultFuture.complete(null);
-        }
-
-        public void completeGlobalCleanup() {
-            globalCleanupResultFuture.complete(null);
         }
     }
 }

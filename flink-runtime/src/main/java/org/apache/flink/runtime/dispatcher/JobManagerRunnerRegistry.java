@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.util.ExceptionUtils;
@@ -37,8 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /** {@code JobManagerRunner} collects running jobs represented by {@link JobManagerRunner}. */
-public class JobManagerRunnerRegistry
-        implements LocallyCleanableResource, GloballyCleanableResource {
+public class JobManagerRunnerRegistry implements LocallyCleanableResource {
 
     @VisibleForTesting final Map<JobID, JobManagerRunner> jobManagerRunners;
 
@@ -81,16 +79,6 @@ public class JobManagerRunnerRegistry
 
     public Collection<JobManagerRunner> getJobManagerRunners() {
         return this.jobManagerRunners.values();
-    }
-
-    @Override
-    public void globalCleanup(JobID jobId) throws IOException {
-        cleanup(jobId);
-    }
-
-    @Override
-    public CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor unusedExecutor) {
-        return cleanupAsync(jobId);
     }
 
     @Override
