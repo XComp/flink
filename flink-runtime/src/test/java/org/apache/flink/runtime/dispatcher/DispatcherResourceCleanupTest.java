@@ -211,12 +211,23 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerCleanupWhenJobFinished() throws Exception {
+    public void testGlobalCleanupWhenJobFinished() throws Exception {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
 
         // complete the job
         finishJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        assertGlobalCleanupTriggered(jobId);
+    }
+
+    @Test
+    public void testGlobalCleanupWhenJobCanceled() throws Exception {
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitJob();
+
+        // complete the job
+        cancelJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
 
         assertGlobalCleanupTriggered(jobId);
     }
@@ -230,7 +241,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerCleanupWhenJobNotFinished() throws Exception {
+    public void testLocalCleanupWhenJobNotFinished() throws Exception {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
 
@@ -242,9 +253,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertLocalCleanupTriggered(jobId);
     }
 
-    /** Tests that the uploaded blobs are being cleaned up in case of a job submission failure. */
     @Test
-    public void testBlobServerCleanupWhenJobSubmissionFails() throws Exception {
+    public void testGlobalCleanupWhenJobSubmissionFails() throws Exception {
         startDispatcher(new FailingJobManagerRunnerFactory(new FlinkException("Test exception")));
         final CompletableFuture<Acknowledge> submissionFuture = submitJob();
 
@@ -259,7 +269,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerCleanupWhenClosingDispatcher() throws Exception {
+    public void testLocalCleanupWhenClosingDispatcher() throws Exception {
         startDispatcherAndSubmitJob();
 
         dispatcher.closeAsync().get();
@@ -268,7 +278,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testHACleanupWhenJobFinishedWhileClosingDispatcher() throws Exception {
+    public void testGlobalCleanupWhenJobFinishedWhileClosingDispatcher() throws Exception {
         final TestingJobManagerRunner testingJobManagerRunner =
                 TestingJobManagerRunner.newBuilder()
                         .setBlockingTermination(true)
@@ -396,30 +406,16 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertGlobalCleanupTriggered(jobId);
     }
 
-    @Test
-    public void testHaDataCleanupWhenJobFinished() throws Exception {
-        TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
-        TestingJobManagerRunner jobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        finishJob(jobManagerRunner);
-        assertGlobalCleanupTriggered(jobId);
-    }
-
-    @Test
-    public void testHaDataCleanupWhenJobNotFinished() throws Exception {
-        TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
-        TestingJobManagerRunner jobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        suspendJob(jobManagerRunner);
-        assertLocalCleanupTriggered(jobId);
-    }
-
     private void finishJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
         terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.FINISHED);
     }
 
     private void suspendJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
         terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.SUSPENDED);
+    }
+
+    private void cancelJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
+        terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.CANCELED);
     }
 
     private void terminateJobWithState(
@@ -526,24 +522,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                     ? Collections.singleton(actualJobResultEntry.getJobResult())
                     : Collections.emptySet();
         }
-    }
-
-    @Test
-    public void testHABlobsAreRemovedIfHAJobGraphRemovalSucceeds() throws Exception {
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob();
-
-        ArchivedExecutionGraph executionGraph =
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(jobId)
-                        .setState(JobStatus.CANCELED)
-                        .build();
-
-        final TestingJobManagerRunner testingJobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        testingJobManagerRunner.completeResultFuture(new ExecutionGraphInfo(executionGraph));
-
-        assertGlobalCleanupTriggered(jobId);
     }
 
     private void assertLocalCleanupTriggered(JobID jobId)
