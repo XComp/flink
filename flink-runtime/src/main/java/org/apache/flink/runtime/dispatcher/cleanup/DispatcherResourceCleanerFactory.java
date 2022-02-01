@@ -77,6 +77,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
         this.jobManagerMetricGroup = Preconditions.checkNotNull(jobManagerMetricGroup);
     }
 
+    @Override
     public ResourceCleaner createLocalResourceCleaner() {
         final DefaultResourceCleaner resourceCleaner = new DefaultResourceCleaner(cleanupExecutor);
         resourceCleaner.withPriorityCleanupOf(jobManagerRunnerRegistry::localCleanupAsync);
@@ -88,6 +89,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
         return resourceCleaner;
     }
 
+    @Override
     public ResourceCleaner createGlobalResourceCleaner() {
         final DefaultResourceCleaner resourceCleaner = new DefaultResourceCleaner(cleanupExecutor);
         for (GloballyCleanableResource globallyCleanableResource :
