@@ -94,14 +94,12 @@ public class DispatcherResourceCleanerFactoryTest {
     public void testLocalResourceCleaning() {
         assertGlobalCleanupNotTriggered();
         assertLocalCleanupNotTriggered();
-        assertJobManagerMetricGroupNotCleaned();
 
         final CompletableFuture<Void> cleanupResultFuture =
                 testInstance.createLocalResourceCleaner().cleanupAsync(JOB_ID);
 
         assertGlobalCleanupNotTriggered();
         assertLocalCleanupTriggeredWaitingForJobManagerRunnerRegistry();
-        assertJobManagerMetricGroupNotCleaned();
 
         assertThat(cleanupResultFuture).isNotCompleted();
 
@@ -109,7 +107,6 @@ public class DispatcherResourceCleanerFactoryTest {
 
         assertGlobalCleanupNotTriggered();
         assertLocalCleanupTriggered();
-        assertJobManagerMetricGroupCleaned();
 
         assertThat(cleanupResultFuture).isCompleted();
     }
@@ -119,14 +116,12 @@ public class DispatcherResourceCleanerFactoryTest {
             throws ExecutionException, InterruptedException, TimeoutException {
         assertGlobalCleanupNotTriggered();
         assertLocalCleanupNotTriggered();
-        assertJobManagerMetricGroupNotCleaned();
 
         final CompletableFuture<Void> cleanupResultFuture =
                 testInstance.createGlobalResourceCleaner().cleanupAsync(JOB_ID);
 
         assertGlobalCleanupTriggeredWaitingForJobManagerRunnerRegistry();
         assertLocalCleanupNotTriggered();
-        assertJobManagerMetricGroupNotCleaned();
 
         assertThat(cleanupResultFuture).isNotCompleted();
 
@@ -134,7 +129,6 @@ public class DispatcherResourceCleanerFactoryTest {
 
         assertGlobalCleanupTriggered();
         assertLocalCleanupNotTriggered();
-        assertJobManagerMetricGroupCleaned();
 
         assertThat(cleanupResultFuture).isCompleted();
     }
@@ -144,6 +138,7 @@ public class DispatcherResourceCleanerFactoryTest {
         assertThat(jobGraphWriter.getLocalCleanupFuture()).isNotDone();
         assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
         assertThat(highAvailabilityServices.getLocalCleanupFuture()).isNotDone();
+        assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(1);
     }
 
     private void assertLocalCleanupTriggeredWaitingForJobManagerRunnerRegistry() {
@@ -153,6 +148,7 @@ public class DispatcherResourceCleanerFactoryTest {
         assertThat(jobGraphWriter.getLocalCleanupFuture()).isNotDone();
         assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
         assertThat(highAvailabilityServices.getLocalCleanupFuture()).isNotDone();
+        assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(1);
     }
 
     private void assertGlobalCleanupNotTriggered() {
@@ -171,15 +167,12 @@ public class DispatcherResourceCleanerFactoryTest {
         assertThat(highAvailabilityServices.getGlobalCleanupFuture()).isNotDone();
     }
 
-    private void assertJobManagerMetricGroupNotCleaned() {
-        assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(1);
-    }
-
     private void assertLocalCleanupTriggered() {
         assertThat(jobManagerRunnerRegistry.getLocalCleanupFuture()).isCompleted();
         assertThat(jobGraphWriter.getLocalCleanupFuture()).isCompleted();
         assertThat(blobServer.getLocalCleanupFuture()).isCompleted();
         assertThat(highAvailabilityServices.getLocalCleanupFuture()).isNotCompleted();
+        assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(0);
     }
 
     private void assertGlobalCleanupTriggered() {
@@ -187,10 +180,6 @@ public class DispatcherResourceCleanerFactoryTest {
         assertThat(jobGraphWriter.getGlobalCleanupFuture()).isCompleted();
         assertThat(blobServer.getGlobalCleanupFuture()).isCompleted();
         assertThat(highAvailabilityServices.getGlobalCleanupFuture()).isCompleted();
-    }
-
-    private void assertJobManagerMetricGroupCleaned() {
-        assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(0);
     }
 
     private static class AbstractTestingCleanableResource

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -36,7 +35,7 @@ import java.util.Map;
  * tasks any more
  */
 public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup>
-        implements LocallyCleanableResource, GloballyCleanableResource {
+        implements LocallyCleanableResource {
 
     private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
 
@@ -88,16 +87,7 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
     }
 
     @Override
-    public void globalCleanup(JobID jobId) {
-        cleanup(jobId);
-    }
-
-    @Override
     public void localCleanup(JobID jobId) {
-        cleanup(jobId);
-    }
-
-    private void cleanup(JobID jobId) {
         if (jobId == null) {
             return;
         }

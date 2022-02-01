@@ -92,11 +92,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
         final DefaultResourceCleaner resourceCleaner = new DefaultResourceCleaner(cleanupExecutor);
         resourceCleaner.withPriorityCleanupOf(jobManagerRunnerRegistry::globalCleanupAsync);
         for (GloballyCleanableResource globallyCleanableResource :
-                Arrays.asList(
-                        jobGraphWriter,
-                        blobServer,
-                        highAvailabilityServices,
-                        jobManagerMetricGroup)) {
+                Arrays.asList(jobGraphWriter, blobServer, highAvailabilityServices)) {
             resourceCleaner.withCleanupOf(globallyCleanableResource::globalCleanupAsync);
         }
 
