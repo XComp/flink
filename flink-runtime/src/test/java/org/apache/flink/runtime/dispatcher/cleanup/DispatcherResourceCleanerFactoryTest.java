@@ -21,20 +21,16 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerRegistry;
+import org.apache.flink.runtime.dispatcher.JobManagerRunnerRegistry;
+import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerRegistry;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
+import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -59,20 +55,22 @@ public class DispatcherResourceCleanerFactoryTest {
 
     private static final JobID JOB_ID = new JobID();
 
-    private CleanableJobManagerRegistry jobManagerRunnerRegistry;
-    private CleanableJobGraphWriter jobGraphWriter;
     private CleanableBlobServer blobServer;
-    private CleanableHighAvailabilityServices highAvailabilityServices;
+
+    private CompletableFuture<JobID> jobManagerRunnerRegistryLocalCleanupFuture;
+    private CompletableFuture<Void> jobManagerRunnerRegistryLocalCleanupResultFuture;
+
+    private CompletableFuture<JobID> jobGraphWriterLocalCleanupFuture;
+    private CompletableFuture<JobID> jobGraphWriterGlobalCleanupFuture;
+
+    private CompletableFuture<JobID> highAvailabilityServicesGlobalCleanupFuture;
     private JobManagerMetricGroup jobManagerMetricGroup;
 
     private DispatcherResourceCleanerFactory testInstance;
 
     @BeforeEach
-    public void setup() throws IOException {
-        jobManagerRunnerRegistry = new CleanableJobManagerRegistry();
-        jobGraphWriter = new CleanableJobGraphWriter();
+    public void setup() throws Exception {
         blobServer = new CleanableBlobServer();
-        highAvailabilityServices = new CleanableHighAvailabilityServices();
 
         MetricRegistry metricRegistry = TestingMetricRegistry.builder().build();
         jobManagerMetricGroup =
@@ -83,11 +81,43 @@ public class DispatcherResourceCleanerFactoryTest {
         testInstance =
                 new DispatcherResourceCleanerFactory(
                         Executors.directExecutor(),
-                        jobManagerRunnerRegistry,
-                        jobGraphWriter,
+                        createJobManagerRunnerRegistry(),
+                        createJobGraphWriter(),
                         blobServer,
-                        highAvailabilityServices,
+                        createHighAvailabilityServices(),
                         jobManagerMetricGroup);
+    }
+
+    private JobManagerRunnerRegistry createJobManagerRunnerRegistry() {
+        jobManagerRunnerRegistryLocalCleanupFuture = new CompletableFuture<>();
+        jobManagerRunnerRegistryLocalCleanupResultFuture = new CompletableFuture<>();
+        return TestingJobManagerRunnerRegistry.builder()
+                .withLocalCleanupAsyncFunction(
+                        (jobId, executor) -> {
+                            jobManagerRunnerRegistryLocalCleanupFuture.complete(jobId);
+                            return jobManagerRunnerRegistryLocalCleanupResultFuture;
+                        })
+                .build();
+    }
+
+    private JobGraphWriter createJobGraphWriter() throws Exception {
+        jobGraphWriterLocalCleanupFuture = new CompletableFuture<>();
+        jobGraphWriterGlobalCleanupFuture = new CompletableFuture<>();
+        final TestingJobGraphStore jobGraphStore =
+                TestingJobGraphStore.newBuilder()
+                        .setGlobalCleanupConsumer(jobGraphWriterGlobalCleanupFuture::complete)
+                        .setLocalCleanupConsumer(jobGraphWriterLocalCleanupFuture::complete)
+                        .build();
+        jobGraphStore.start(null);
+
+        return jobGraphStore;
+    }
+
+    private HighAvailabilityServices createHighAvailabilityServices() {
+        highAvailabilityServicesGlobalCleanupFuture = new CompletableFuture<>();
+        final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+        haServices.setGlobalCleanupFuture(highAvailabilityServicesGlobalCleanupFuture);
+        return haServices;
     }
 
     @Test
@@ -103,7 +133,7 @@ public class DispatcherResourceCleanerFactoryTest {
 
         assertThat(cleanupResultFuture).isNotCompleted();
 
-        jobManagerRunnerRegistry.completeLocalCleanup();
+        jobManagerRunnerRegistryLocalCleanupResultFuture.complete(null);
 
         assertGlobalCleanupNotTriggered();
         assertLocalCleanupTriggered();
@@ -127,168 +157,38 @@ public class DispatcherResourceCleanerFactoryTest {
     }
 
     private void assertLocalCleanupNotTriggered() {
-        assertThat(jobManagerRunnerRegistry.getLocalCleanupFuture()).isNotDone();
-        assertThat(jobGraphWriter.getLocalCleanupFuture()).isNotDone();
+        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isNotDone();
+        assertThat(jobGraphWriterLocalCleanupFuture).isNotDone();
         assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
-        assertThat(highAvailabilityServices.getLocalCleanupFuture()).isNotDone();
         assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(1);
     }
 
     private void assertLocalCleanupTriggeredWaitingForJobManagerRunnerRegistry() {
-        assertThat(jobManagerRunnerRegistry.getLocalCleanupFuture()).isDone();
+        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isDone();
 
         // the JobManagerRunnerRegistry needs to be cleaned up first
-        assertThat(jobGraphWriter.getLocalCleanupFuture()).isNotDone();
+        assertThat(jobGraphWriterLocalCleanupFuture).isNotDone();
         assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
-        assertThat(highAvailabilityServices.getLocalCleanupFuture()).isNotDone();
         assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(1);
     }
 
     private void assertGlobalCleanupNotTriggered() {
-        assertThat(jobGraphWriter.getGlobalCleanupFuture()).isNotDone();
+        assertThat(jobGraphWriterGlobalCleanupFuture).isNotDone();
         assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
-        assertThat(highAvailabilityServices.getGlobalCleanupFuture()).isNotDone();
+        assertThat(highAvailabilityServicesGlobalCleanupFuture).isNotDone();
     }
 
     private void assertLocalCleanupTriggered() {
-        assertThat(jobManagerRunnerRegistry.getLocalCleanupFuture()).isCompleted();
-        assertThat(jobGraphWriter.getLocalCleanupFuture()).isCompleted();
+        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
+        assertThat(jobGraphWriterLocalCleanupFuture).isCompleted();
         assertThat(blobServer.getLocalCleanupFuture()).isCompleted();
-        assertThat(highAvailabilityServices.getLocalCleanupFuture()).isNotCompleted();
         assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(0);
     }
 
     private void assertGlobalCleanupTriggered() {
-        assertThat(jobGraphWriter.getGlobalCleanupFuture()).isCompleted();
+        assertThat(jobGraphWriterGlobalCleanupFuture).isCompleted();
         assertThat(blobServer.getGlobalCleanupFuture()).isCompleted();
-        assertThat(highAvailabilityServices.getGlobalCleanupFuture()).isCompleted();
-    }
-
-    private static class AbstractTestingCleanableResource
-            implements LocallyCleanableResource, GloballyCleanableResource {
-
-        private final CompletableFuture<JobID> localCleanupFuture = new CompletableFuture<>();
-        private final CompletableFuture<JobID> globalCleanupFuture = new CompletableFuture<>();
-
-        @Override
-        public void globalCleanup(JobID jobId) {
-            throw new UnsupportedOperationException("Synchronous globalCleanup is not supported.");
-        }
-
-        @Override
-        public void localCleanup(JobID jobId) {
-            throw new UnsupportedOperationException("Synchronous localCleanup is not supported.");
-        }
-
-        @Override
-        public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor ignoredExecutor) {
-            localCleanupFuture.complete(jobId);
-
-            return FutureUtils.completedVoidFuture();
-        }
-
-        @Override
-        public CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor ignoredExecutor) {
-            globalCleanupFuture.complete(jobId);
-
-            return FutureUtils.completedVoidFuture();
-        }
-
-        public CompletableFuture<JobID> getLocalCleanupFuture() {
-            return localCleanupFuture;
-        }
-
-        public CompletableFuture<JobID> getGlobalCleanupFuture() {
-            return globalCleanupFuture;
-        }
-    }
-
-    private static class CleanableJobGraphWriter extends AbstractTestingCleanableResource
-            implements JobGraphWriter {
-
-        @Override
-        public void putJobGraph(JobGraph jobGraph) {
-            throw new UnsupportedOperationException("putJobGraph operation not supported.");
-        }
-    }
-
-    private static class CleanableHighAvailabilityServices extends AbstractTestingCleanableResource
-            implements HighAvailabilityServices {
-
-        @Override
-        public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-            throw new UnsupportedOperationException(
-                    "getResourceManagerLeaderRetriever operation not supported.");
-        }
-
-        @Override
-        public LeaderRetrievalService getDispatcherLeaderRetriever() {
-            throw new UnsupportedOperationException(
-                    "getDispatcherLeaderRetriever operation not supported.");
-        }
-
-        @Override
-        public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-            throw new UnsupportedOperationException(
-                    "getJobManagerLeaderRetriever operation not supported.");
-        }
-
-        @Override
-        public LeaderRetrievalService getJobManagerLeaderRetriever(
-                JobID jobID, String defaultJobManagerAddress) {
-            throw new UnsupportedOperationException(
-                    "getJobManagerLeaderRetriever operation not supported.");
-        }
-
-        @Override
-        public LeaderElectionService getResourceManagerLeaderElectionService() {
-            throw new UnsupportedOperationException(
-                    "getResourceManagerLeaderElectionService operation not supported.");
-        }
-
-        @Override
-        public LeaderElectionService getDispatcherLeaderElectionService() {
-            throw new UnsupportedOperationException(
-                    "getDispatcherLeaderElectionService operation not supported.");
-        }
-
-        @Override
-        public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
-            throw new UnsupportedOperationException(
-                    "getJobManagerLeaderElectionService operation not supported.");
-        }
-
-        @Override
-        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
-            throw new UnsupportedOperationException(
-                    "getCheckpointRecoveryFactory operation not supported.");
-        }
-
-        @Override
-        public JobGraphStore getJobGraphStore() throws Exception {
-            throw new UnsupportedOperationException("getJobGraphStore operation not supported.");
-        }
-
-        @Override
-        public JobResultStore getJobResultStore() throws Exception {
-            throw new UnsupportedOperationException("getJobResultStore operation not supported.");
-        }
-
-        @Override
-        public BlobStore createBlobStore() throws IOException {
-            throw new UnsupportedOperationException("createBlobStore operation not supported.");
-        }
-
-        @Override
-        public void close() throws Exception {
-            throw new UnsupportedOperationException("close operation not supported.");
-        }
-
-        @Override
-        public void closeAndCleanupAllData() throws Exception {
-            throw new UnsupportedOperationException(
-                    "closeAndCleanupAllData operation not supported.");
-        }
+        assertThat(highAvailabilityServicesGlobalCleanupFuture).isCompleted();
     }
 
     private static class CleanableBlobServer extends BlobServer {
@@ -333,37 +233,6 @@ public class DispatcherResourceCleanerFactoryTest {
 
         public CompletableFuture<JobID> getGlobalCleanupFuture() {
             return globalCleanupFuture;
-        }
-    }
-
-    private static class CleanableJobManagerRegistry extends DefaultJobManagerRunnerRegistry {
-
-        private final CompletableFuture<JobID> localCleanupFuture = new CompletableFuture<>();
-
-        private final CompletableFuture<Void> localCleanupResultFuture = new CompletableFuture<>();
-
-        public CleanableJobManagerRegistry() {
-            super(1);
-        }
-
-        @Override
-        public void localCleanup(JobID jobId) {
-            throw new UnsupportedOperationException("Synchronous localCleanup is not supported.");
-        }
-
-        @Override
-        public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor ignoredExecutor) {
-            localCleanupFuture.complete(jobId);
-
-            return localCleanupResultFuture;
-        }
-
-        public CompletableFuture<JobID> getLocalCleanupFuture() {
-            return localCleanupFuture;
-        }
-
-        public void completeLocalCleanup() {
-            localCleanupResultFuture.complete(null);
         }
     }
 }
