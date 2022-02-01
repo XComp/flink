@@ -26,9 +26,12 @@ import java.util.concurrent.Executor;
 
 /**
  * {@code LocallyCleanableResource} is supposed to be used by any class that provides artifacts for
- * a given job that can be cleaned up locally.
+ * a given job that can be cleaned up locally. Artifacts considered to be local are located on the
+ * JobManager instance itself and won't survive a failover scenario. These artifacts are, in
+ * contrast to {@link GloballyCleanableResource} artifacts, going to be cleaned up even after the
+ * job reaches a locally-terminated state.
  *
- * @see GloballyCleanableResource
+ * @see org.apache.flink.api.common.JobStatus
  */
 @FunctionalInterface
 public interface LocallyCleanableResource {
