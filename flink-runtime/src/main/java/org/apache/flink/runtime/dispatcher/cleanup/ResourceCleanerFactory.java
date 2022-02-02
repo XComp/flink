@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 
 import java.util.concurrent.Executor;
 
@@ -35,11 +36,11 @@ public interface ResourceCleanerFactory {
      * Creates {@link ResourceCleaner} that initiates {@link
      * LocallyCleanableResource#localCleanupAsync(JobID, Executor)} calls.
      */
-    ResourceCleaner createLocalResourceCleaner();
+    ResourceCleaner createLocalResourceCleaner(ComponentMainThreadExecutor mainThreadExecutor);
 
     /**
      * Creates {@link ResourceCleaner} that initiates {@link
      * GloballyCleanableResource#globalCleanupAsync(JobID, Executor)} calls.
      */
-    ResourceCleaner createGlobalResourceCleaner();
+    ResourceCleaner createGlobalResourceCleaner(ComponentMainThreadExecutor mainThreadExecutor);
 }

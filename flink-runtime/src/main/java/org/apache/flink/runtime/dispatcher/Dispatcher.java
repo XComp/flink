@@ -217,8 +217,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         final ResourceCleanerFactory resourceCleanerFactory =
                 new DispatcherResourceCleanerFactory(jobManagerRunnerRegistry, dispatcherServices);
-        this.localResourceCleaner = resourceCleanerFactory.createLocalResourceCleaner();
-        this.globalResourceCleaner = resourceCleanerFactory.createGlobalResourceCleaner();
+        this.localResourceCleaner =
+                resourceCleanerFactory.createLocalResourceCleaner(this.getMainThreadExecutor());
+        this.globalResourceCleaner =
+                resourceCleanerFactory.createGlobalResourceCleaner(this.getMainThreadExecutor());
     }
 
     // ------------------------------------------------------

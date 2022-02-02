@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerRegistry;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -78,8 +79,10 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     }
 
     @Override
-    public ResourceCleaner createLocalResourceCleaner() {
-        final DefaultResourceCleaner resourceCleaner = new DefaultResourceCleaner(cleanupExecutor);
+    public ResourceCleaner createLocalResourceCleaner(
+            ComponentMainThreadExecutor mainThreadExecutor) {
+        final DefaultResourceCleaner resourceCleaner =
+                new DefaultResourceCleaner(cleanupExecutor, mainThreadExecutor);
         resourceCleaner.withPriorityCleanupOf(jobManagerRunnerRegistry::localCleanupAsync);
         for (LocallyCleanableResource locallyCleanableResource :
                 Arrays.asList(jobGraphWriter, blobServer, jobManagerMetricGroup)) {
@@ -90,8 +93,10 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     }
 
     @Override
-    public ResourceCleaner createGlobalResourceCleaner() {
-        final DefaultResourceCleaner resourceCleaner = new DefaultResourceCleaner(cleanupExecutor);
+    public ResourceCleaner createGlobalResourceCleaner(
+            ComponentMainThreadExecutor mainThreadExecutor) {
+        final DefaultResourceCleaner resourceCleaner =
+                new DefaultResourceCleaner(cleanupExecutor, mainThreadExecutor);
         for (GloballyCleanableResource globallyCleanableResource :
                 Arrays.asList(jobGraphWriter, blobServer, highAvailabilityServices)) {
             resourceCleaner.withCleanupOf(globallyCleanableResource::globalCleanupAsync);

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -49,7 +50,9 @@ public class DefaultResourceCleanerTest {
         cleanup0 = CleanupCallback.withoutCompletionOnCleanup();
         cleanup1 = CleanupCallback.withoutCompletionOnCleanup();
 
-        testInstance = new DefaultResourceCleaner(EXECUTOR);
+        testInstance =
+                new DefaultResourceCleaner(
+                        EXECUTOR, ComponentMainThreadExecutorServiceAdapter.forMainThread());
         testInstance.withCleanupOf(cleanup0).withCleanupOf(cleanup1);
     }
 
@@ -114,7 +117,9 @@ public class DefaultResourceCleanerTest {
         final CleanupCallback noPriorityCleanup0 = CleanupCallback.withCompletionOnCleanup();
         final CleanupCallback noPriorityCleanup1 = CleanupCallback.withCompletionOnCleanup();
 
-        final DefaultResourceCleaner testInstance = new DefaultResourceCleaner(EXECUTOR);
+        final DefaultResourceCleaner testInstance =
+                new DefaultResourceCleaner(
+                        EXECUTOR, ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         testInstance
                 .withPriorityCleanupOf(highPriorityCleanup)
@@ -149,7 +154,9 @@ public class DefaultResourceCleanerTest {
         final CleanupCallback noPriorityCleanup0 = CleanupCallback.withCompletionOnCleanup();
         final CleanupCallback noPriorityCleanup1 = CleanupCallback.withCompletionOnCleanup();
 
-        final DefaultResourceCleaner testInstance = new DefaultResourceCleaner(EXECUTOR);
+        final DefaultResourceCleaner testInstance =
+                new DefaultResourceCleaner(
+                        EXECUTOR, ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         testInstance
                 .withPriorityCleanupOf(highPriorityCleanup)

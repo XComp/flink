@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerRegistry;
 import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerRegistry;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -126,7 +127,10 @@ public class DispatcherResourceCleanerFactoryTest {
         assertLocalCleanupNotTriggered();
 
         final CompletableFuture<Void> cleanupResultFuture =
-                testInstance.createLocalResourceCleaner().cleanupAsync(JOB_ID);
+                testInstance
+                        .createLocalResourceCleaner(
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .cleanupAsync(JOB_ID);
 
         assertGlobalCleanupNotTriggered();
         assertLocalCleanupTriggeredWaitingForJobManagerRunnerRegistry();
@@ -148,7 +152,10 @@ public class DispatcherResourceCleanerFactoryTest {
         assertLocalCleanupNotTriggered();
 
         final CompletableFuture<Void> cleanupResultFuture =
-                testInstance.createGlobalResourceCleaner().cleanupAsync(JOB_ID);
+                testInstance
+                        .createGlobalResourceCleaner(
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .cleanupAsync(JOB_ID);
 
         assertGlobalCleanupTriggered();
         assertLocalCleanupNotTriggered();

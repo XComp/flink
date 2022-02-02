@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.ArrayList;
@@ -36,9 +37,12 @@ public class DefaultResourceCleaner implements ResourceCleaner {
     private final Collection<BiFunction<JobID, Executor, CompletableFuture<Void>>>
             jobRelatedCleanups = new ArrayList<>();
     private final Executor cleanupExecutor;
+    private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    DefaultResourceCleaner(Executor cleanupExecutor) {
+    DefaultResourceCleaner(
+            Executor cleanupExecutor, ComponentMainThreadExecutor mainThreadExecutor) {
         this.cleanupExecutor = cleanupExecutor;
+        this.mainThreadExecutor = mainThreadExecutor;
     }
 
     DefaultResourceCleaner withPriorityCleanupOf(
@@ -55,6 +59,7 @@ public class DefaultResourceCleaner implements ResourceCleaner {
 
     @Override
     public CompletableFuture<Void> cleanupAsync(JobID jobId) {
+        mainThreadExecutor.assertRunningInMainThread();
         CompletableFuture<Void> prioritizedOrderedCleanupFuture = FutureUtils.completedVoidFuture();
         for (BiFunction<JobID, Executor, CompletableFuture<Void>> prioritizedCleanupFunction :
                 prioritizedOrderedJobRelatedCleanups) {

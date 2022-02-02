@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.cleanup;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -52,7 +53,8 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
     }
 
     @Override
-    public ResourceCleaner createLocalResourceCleaner() {
+    public ResourceCleaner createLocalResourceCleaner(
+            ComponentMainThreadExecutor mainThreadExecutor) {
         return jobId -> {
             Throwable t = null;
             for (LocallyCleanableResource locallyCleanableResource : locallyCleanableResources) {
@@ -70,7 +72,8 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
     }
 
     @Override
-    public ResourceCleaner createGlobalResourceCleaner() {
+    public ResourceCleaner createGlobalResourceCleaner(
+            ComponentMainThreadExecutor mainThreadExecutor) {
         return jobId -> {
             Throwable t = null;
             for (GloballyCleanableResource globallyCleanableResource : globallyCleanableResources) {
