@@ -178,12 +178,12 @@ public class DispatcherTest extends AbstractDispatcherTest {
             JobManagerRunnerFactory jobManagerRunnerFactory)
             throws Exception {
         final TestingDispatcher dispatcher =
-                new TestingDispatcherBuilder()
-                        .setHaServices(haServices)
-                        .setHeartbeatServices(heartbeatServices)
-                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setJobGraphWriter(haServices.getJobGraphStore())
-                        .setJobResultStore(haServices.getJobResultStore())
+                createTestingDispatcherBuilder()
+                        .withHighAvailabilityServices(haServices)
+                        .withHeartbeatServices(heartbeatServices)
+                        .withJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .withJobGraphWriter(haServices.getJobGraphStore())
+                        .withJobResultStore(haServices.getJobResultStore())
                         .build();
         dispatcher.start();
         return dispatcher;
@@ -246,11 +246,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testDuplicateJobSubmissionWithRunningJobId() throws Exception {
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setJobManagerRunnerFactory(
+                createTestingDispatcherBuilder()
+                        .withJobManagerRunnerFactory(
                                 new ExpectedJobIdJobManagerRunnerFactory(
                                         jobId, createdJobManagerRunnerLatch))
-                        .setInitialJobGraphs(Collections.singleton(jobGraph))
+                        .withRecoveredJobs(Collections.singleton(jobGraph))
                         .build();
         dispatcher.start();
         final DispatcherGateway dispatcherGateway =
@@ -474,11 +474,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final CompletableFuture<JobManagerRunnerResult> jobTerminationFuture =
                 new CompletableFuture<>();
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setJobManagerRunnerFactory(
+                createTestingDispatcherBuilder()
+                        .withJobManagerRunnerFactory(
                                 new FinishingJobManagerRunnerFactory(
                                         jobTerminationFuture, () -> {}))
-                        .setHistoryServerArchivist(
+                        .withHistoryServerArchivist(
                                 executionGraphInfo -> {
                                     archiveAttemptFuture.complete(null);
                                     return CompletableFuture.completedFuture(null);
@@ -675,10 +675,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 new TestingJobManagerRunnerFactory();
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setInitialJobGraphs(
-                                Collections.singleton(JobGraphTestUtils.emptyJobGraph()))
+                createTestingDispatcherBuilder()
+                        .withJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .withRecoveredJobs(Collections.singleton(JobGraphTestUtils.emptyJobGraph()))
                         .build();
 
         dispatcher.start();
@@ -721,9 +720,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobResult jobResult =
                 TestingJobResultStore.createSuccessfulJobResult(jobGraph.getJobID());
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setInitialJobGraphs(Collections.singleton(jobGraph))
-                        .setDirtyJobResults(Collections.singleton(jobResult))
+                createTestingDispatcherBuilder()
+                        .withRecoveredJobs(Collections.singleton(jobGraph))
+                        .withRecoveredDirtyJobs(Collections.singleton(jobResult))
                         .build();
     }
 
@@ -812,7 +811,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         haServices.setJobGraphStore(submittedJobGraphStore);
 
         dispatcher =
-                new TestingDispatcherBuilder().setJobGraphWriter(submittedJobGraphStore).build();
+                createTestingDispatcherBuilder().withJobGraphWriter(submittedJobGraphStore).build();
 
         dispatcher.start();
 
@@ -930,9 +929,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
         testingJobGraphStore.start(null);
 
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setInitialJobGraphs(Collections.singleton(jobGraph))
-                        .setJobGraphWriter(testingJobGraphStore)
+                createTestingDispatcherBuilder()
+                        .withRecoveredJobs(Collections.singleton(jobGraph))
+                        .withJobGraphWriter(testingJobGraphStore)
                         .build();
         dispatcher.start();
 
@@ -1110,8 +1109,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final PermanentBlobKey blobKey2 = blobServer.putPermanent(jobId2, fileContent);
 
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setInitialJobGraphs(Collections.singleton(new JobGraph(jobId1, "foobar")))
+                createTestingDispatcherBuilder()
+                        .withRecoveredJobs(Collections.singleton(new JobGraph(jobId1, "foobar")))
                         .build();
 
         Assertions.assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);

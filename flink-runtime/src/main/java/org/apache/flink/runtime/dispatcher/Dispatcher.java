@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -169,36 +170,103 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
+        this(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                recoveredDirtyJobs,
+                dispatcherBootstrapFactory,
+                dispatcherServices,
+                new DefaultJobManagerRunnerRegistry(16));
+    }
+
+    private Dispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> globallyTerminatedJobs,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            DispatcherServices dispatcherServices,
+            JobManagerRunnerRegistry jobManagerRunnerRegistry)
+            throws Exception {
+        this(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                globallyTerminatedJobs,
+                dispatcherServices.getConfiguration(),
+                dispatcherServices.getHighAvailabilityServices(),
+                dispatcherServices.getResourceManagerGatewayRetriever(),
+                dispatcherServices.getHeartbeatServices(),
+                dispatcherServices.getBlobServer(),
+                dispatcherServices.getFatalErrorHandler(),
+                dispatcherServices.getJobGraphWriter(),
+                dispatcherServices.getJobResultStore(),
+                dispatcherServices.getJobManagerMetricGroup(),
+                dispatcherServices.getMetricQueryServiceAddress(),
+                dispatcherServices.getIoExecutor(),
+                dispatcherServices.getHistoryServerArchivist(),
+                dispatcherServices.getArchivedExecutionGraphStore(),
+                dispatcherServices.getJobManagerRunnerFactory(),
+                dispatcherBootstrapFactory,
+                dispatcherServices.getOperationCaches(),
+                jobManagerRunnerRegistry,
+                new DispatcherResourceCleanerFactory(jobManagerRunnerRegistry, dispatcherServices));
+    }
+
+    @VisibleForTesting
+    protected Dispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobs,
+            Configuration configuration,
+            HighAvailabilityServices highAvailabilityServices,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            HeartbeatServices heartbeatServices,
+            BlobServer blobServer,
+            FatalErrorHandler fatalErrorHandler,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore,
+            JobManagerMetricGroup jobManagerMetricGroup,
+            @Nullable String metricServiceQueryAddress,
+            Executor ioExecutor,
+            HistoryServerArchivist historyServerArchivist,
+            ExecutionGraphInfoStore executionGraphInfoStore,
+            JobManagerRunnerFactory jobManagerRunnerFactory,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            DispatcherOperationCaches dispatcherOperationCaches,
+            JobManagerRunnerRegistry jobManagerRunnerRegistry,
+            ResourceCleanerFactory resourceCleanerFactory)
+            throws Exception {
         super(rpcService, RpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
-        checkNotNull(dispatcherServices);
         assertRecoveredJobsAndDirtyJobResults(recoveredJobs, recoveredDirtyJobs);
 
-        this.configuration = dispatcherServices.getConfiguration();
-        this.highAvailabilityServices = dispatcherServices.getHighAvailabilityServices();
-        this.resourceManagerGatewayRetriever =
-                dispatcherServices.getResourceManagerGatewayRetriever();
-        this.heartbeatServices = dispatcherServices.getHeartbeatServices();
-        this.blobServer = dispatcherServices.getBlobServer();
-        this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
-        this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
-        this.jobResultStore = dispatcherServices.getJobResultStore();
-        this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
-        this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
-        this.ioExecutor = dispatcherServices.getIoExecutor();
+        this.configuration = configuration;
+        this.highAvailabilityServices = highAvailabilityServices;
+        this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
+        this.heartbeatServices = heartbeatServices;
+        this.blobServer = blobServer;
+        this.fatalErrorHandler = fatalErrorHandler;
+        this.jobGraphWriter = jobGraphWriter;
+        this.jobResultStore = jobResultStore;
+        this.jobManagerMetricGroup = jobManagerMetricGroup;
+        this.metricServiceQueryAddress = metricServiceQueryAddress;
+        this.ioExecutor = ioExecutor;
 
         this.jobManagerSharedServices =
                 JobManagerSharedServices.fromConfiguration(
                         configuration, blobServer, fatalErrorHandler);
 
-        jobManagerRunnerRegistry =
+        this.jobManagerRunnerRegistry =
                 new OnMainThreadJobManagerRunnerRegistry(
-                        new DefaultJobManagerRunnerRegistry(16), this.getMainThreadExecutor());
+                        jobManagerRunnerRegistry, this.getMainThreadExecutor());
 
-        this.historyServerArchivist = dispatcherServices.getHistoryServerArchivist();
+        this.historyServerArchivist = historyServerArchivist;
 
-        this.executionGraphInfoStore = dispatcherServices.getArchivedExecutionGraphStore();
+        this.executionGraphInfoStore = executionGraphInfoStore;
 
-        this.jobManagerRunnerFactory = dispatcherServices.getJobManagerRunnerFactory();
+        this.jobManagerRunnerFactory = jobManagerRunnerFactory;
 
         this.jobManagerRunnerTerminationFutures = new HashMap<>(2);
 
@@ -214,12 +282,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         this.dispatcherCachedOperationsHandler =
                 new DispatcherCachedOperationsHandler(
-                        dispatcherServices.getOperationCaches(),
+                        dispatcherOperationCaches,
                         this::triggerSavepointAndGetLocation,
                         this::stopWithSavepointAndGetLocation);
 
-        final ResourceCleanerFactory resourceCleanerFactory =
-                new DispatcherResourceCleanerFactory(jobManagerRunnerRegistry, dispatcherServices);
         this.localResourceCleaner =
                 resourceCleanerFactory.createLocalResourceCleaner(this.getMainThreadExecutor());
         this.globalResourceCleaner =
