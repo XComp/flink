@@ -191,7 +191,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         configuration, blobServer, fatalErrorHandler);
 
         jobManagerRunnerRegistry =
-                new DefaultJobManagerRunnerRegistry(16, this.getMainThreadExecutor());
+                new OnMainThreadJobManagerRunnerRegistry(
+                        new DefaultJobManagerRunnerRegistry(16), this.getMainThreadExecutor());
 
         this.historyServerArchivist = dispatcherServices.getHistoryServerArchivist();
 
