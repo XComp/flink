@@ -143,6 +143,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
                     // is only called once
                     new NonClosingOutputStreamDecorator(os),
                     new JsonJobResultEntry(jobResultEntry));
+            os.flush();
         }
     }
 
