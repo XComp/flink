@@ -586,6 +586,7 @@ class LocalExecutorITCase {
     }
 
     private void verifySinkResult(String path) throws IOException {
+        // new comment
         final List<String> actualResults = new ArrayList<>();
         TestBaseUtils.readAllResultLines(actualResults, path);
         final List<String> expectedResults = new ArrayList<>();
