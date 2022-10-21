@@ -561,6 +561,7 @@ public class CheckpointCoordinator {
             @Nullable String externalSavepointLocation,
             boolean isPeriodic) {
 
+        // aaaand an even better comment
         CheckpointTriggerRequest request =
                 new CheckpointTriggerRequest(props, externalSavepointLocation, isPeriodic);
         chooseRequestToExecute(request).ifPresent(this::startTriggeringCheckpoint);
