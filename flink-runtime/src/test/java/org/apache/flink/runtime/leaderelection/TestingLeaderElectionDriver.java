@@ -38,14 +38,18 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     private final LeaderElectionEventHandler leaderElectionEventHandler;
     private final FatalErrorHandler fatalErrorHandler;
 
+    private final Runnable beforeGrantLeadershipRunnable;
+
     // Leader information on external storage
     private LeaderInformation leaderInformation = LeaderInformation.empty();
 
     private TestingLeaderElectionDriver(
             LeaderElectionEventHandler leaderElectionEventHandler,
-            FatalErrorHandler fatalErrorHandler) {
+            FatalErrorHandler fatalErrorHandler,
+            Runnable beforeGrantLeadershipRunnable) {
         this.leaderElectionEventHandler = leaderElectionEventHandler;
         this.fatalErrorHandler = fatalErrorHandler;
+        this.beforeGrantLeadershipRunnable = beforeGrantLeadershipRunnable;
     }
 
     @Override
@@ -72,6 +76,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     public void isLeader() {
         synchronized (lock) {
             isLeader.set(true);
+            beforeGrantLeadershipRunnable.run();
             leaderElectionEventHandler.onGrantLeadership(UUID.randomUUID());
         }
     }
@@ -97,13 +102,22 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
         private TestingLeaderElectionDriver currentLeaderDriver;
 
+        private Runnable beforeGrantLeadershipRunnable = () -> {};
+
+        public TestingLeaderElectionDriverFactory() {}
+
+        public TestingLeaderElectionDriverFactory(Runnable beforeGrantLeadershipRunnable) {
+            this.beforeGrantLeadershipRunnable = beforeGrantLeadershipRunnable;
+        }
+
         @Override
         public LeaderElectionDriver createLeaderElectionDriver(
                 LeaderElectionEventHandler leaderEventHandler,
                 FatalErrorHandler fatalErrorHandler,
                 String leaderContenderDescription) {
             currentLeaderDriver =
-                    new TestingLeaderElectionDriver(leaderEventHandler, fatalErrorHandler);
+                    new TestingLeaderElectionDriver(
+                            leaderEventHandler, fatalErrorHandler, beforeGrantLeadershipRunnable);
             return currentLeaderDriver;
         }
 

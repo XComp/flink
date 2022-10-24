@@ -47,6 +47,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 /**
@@ -92,6 +94,8 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     private final CompletableFuture<JobManagerRunnerResult> resultFuture =
             new CompletableFuture<>();
+
+    private final ExecutorService handleLeaderEventExecutor = Executors.newSingleThreadExecutor();
 
     @GuardedBy("lock")
     private State state = State.RUNNING;
@@ -151,10 +155,12 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                 FutureUtils.forward(serviceTerminationFuture, terminationFuture);
 
                 terminationFuture.whenComplete(
-                        (unused, throwable) ->
-                                LOG.debug(
-                                        "Leadership runner for job {} has been terminated.",
-                                        getJobID()));
+                        (unused, throwable) -> {
+                            LOG.debug(
+                                    "Leadership runner for job {} has been terminated.",
+                                    getJobID());
+                            handleLeaderEventExecutor.shutdown();
+                        });
             }
         }
 
@@ -246,9 +252,11 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     @Override
     public void grantLeadership(UUID leaderSessionID) {
-        runIfStateRunning(
-                () -> startJobMasterServiceProcessAsync(leaderSessionID),
-                "starting a new JobMasterServiceProcess");
+        handleLeaderEventExecutor.execute(
+                () ->
+                        runIfStateRunning(
+                                () -> startJobMasterServiceProcessAsync(leaderSessionID),
+                                "starting a new JobMasterServiceProcess"));
     }
 
     @GuardedBy("lock")
@@ -379,9 +387,11 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     @Override
     public void revokeLeadership() {
-        runIfStateRunning(
-                this::stopJobMasterServiceProcessAsync,
-                "revoke leadership from JobMasterServiceProcess");
+        handleLeaderEventExecutor.execute(
+                () ->
+                        runIfStateRunning(
+                                this::stopJobMasterServiceProcessAsync,
+                                "revoke leadership from JobMasterServiceProcess"));
     }
 
     @GuardedBy("lock")
