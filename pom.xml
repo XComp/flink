@@ -2159,6 +2159,11 @@ under the License.
 									<binaryCompatible>true</binaryCompatible>
 									<sourceCompatible>true</sourceCompatible>
 								</overrideCompatibilityChangeParameter>
+								<overrideCompatibilityChangeParameter>
+									<compatibilityChange>METHOD_ADDED_TO_INTERFACE</compatibilityChange>
+									<binaryCompatible>true</binaryCompatible>
+									<sourceCompatible>true</sourceCompatible>
+								</overrideCompatibilityChangeParameter>
 							</overrideCompatibilityChangeParameters>
 						</parameter>
 						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
