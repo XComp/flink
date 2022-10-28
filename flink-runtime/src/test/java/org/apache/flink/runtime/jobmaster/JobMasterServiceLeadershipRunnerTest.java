@@ -45,16 +45,17 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nonnull;
@@ -672,91 +673,103 @@ class JobMasterServiceLeadershipRunnerTest {
     }
 
     @Test
-    @Timeout(60)
     void testJobMasterServiceLeadershipRunnerCloseWhenElectionServiceGrantLeaderShip()
             throws Exception {
-        CompletableFuture<Void> acquireJobMasterServiceLock = new CompletableFuture<>();
-        CompletableFuture<Void> acquireLeaderElectionDriverLock = new CompletableFuture<>();
-        AtomicBoolean isFirstGrantLeadership = new AtomicBoolean(true);
         final TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory
                 testingLeaderElectionDriverFactory =
-                        new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory(
-                                () -> {
-                                    try {
-                                        if (isFirstGrantLeadership.get()) {
-                                            isFirstGrantLeadership.set(false);
-                                            return;
-                                        }
-                                        acquireLeaderElectionDriverLock.complete(null);
-                                        acquireJobMasterServiceLock.get();
-                                    } catch (Exception e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                });
+                        new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
 
+        // we need to use DefaultLeaderElectionService here because JobMasterServiceLeadershipRunner
+        // in connection with the DefaultLeaderElectionService generates the nested locking
         final LeaderElectionService defaultLeaderElectionService =
                 new DefaultLeaderElectionService(testingLeaderElectionDriverFactory);
-        CompletableFuture<Void> terminalFuture = new CompletableFuture<>();
-        CompletableFuture<UUID> confirmSessionId = new CompletableFuture<>();
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
+
+        // latch to detect when we reached the first synchronized section having a lock on the
+        // JobMasterServiceProcess#stop side
+        final OneShotLatch closeAsyncCalledTrigger = new OneShotLatch();
+        // latch to halt the JobMasterServiceProcess#stop before calling stop on the
+        // DefaultLeaderElectionService instance (and entering the LeaderElectionService's
+        // synchronized block)
+        final OneShotLatch triggerClassLoaderLeaseRelease = new OneShotLatch();
+
+        final JobMasterServiceProcess jobMasterServiceProcess =
+                TestingJobMasterServiceProcess2.newBuilder()
+                        .setGetJobMasterGatewayFutureSupplier(CompletableFuture::new)
+                        .setGetResultFutureSupplier(CompletableFuture::new)
+                        .setGetLeaderAddressFutureSupplier(
+                                () -> CompletableFuture.completedFuture("unused address"))
+                        .setCloseAsyncSupplier(
+                                () -> {
+                                    closeAsyncCalledTrigger.trigger();
+                                    // we have to return a completed future because we need the
+                                    // follow-up task to run in the calling thread to make the
+                                    // follow-up logic block be executed in the synchronized block
+                                    return CompletableFuture.completedFuture(null);
+                                })
+                        .build();
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
+                        .setClassLoaderLease(
+                                TestingClassLoaderLease.newBuilder()
+                                        .setCloseRunnable(
+                                                () -> {
+                                                    try {
+                                                        // we want to wait with releasing to halt
+                                                        // before calling stop on the
+                                                        // DefaultLeaderElectioNService
+                                                        triggerClassLoaderLeaseRelease.await();
+                                                    } catch (InterruptedException e) {
+                                                        ExceptionUtils.checkInterrupted(e);
+                                                    }
+                                                })
+                                        .build())
                         .setJobMasterServiceProcessFactory(
                                 TestingJobMasterServiceProcessFactory.newBuilder()
                                         .setJobMasterServiceProcessFunction(
-                                                (sessionId) -> {
-                                                    confirmSessionId.complete(sessionId);
-                                                    return TestingJobMasterServiceProcess
-                                                            .newBuilder()
-                                                            .setTerminationFuture(terminalFuture)
-                                                            .build();
-                                                })
+                                                ignoredSessionId -> jobMasterServiceProcess)
                                         .build())
                         .setLeaderElectionService(defaultLeaderElectionService)
-                        .build();
-        // If JobMasterServiceProcess#closeAsync is called, it will complete terminalFuture, and
-        // then execute the following logic with jobMasterService lock.
-        terminalFuture.thenRun(
-                () -> {
-                    acquireJobMasterServiceLock.complete(null);
-                    try {
-                        // sleep for a very short time to ensure that DefaultLeaderElectionService
-                        // is still running when calling onGrantLeadership.
-                        Thread.sleep(5);
-                        acquireLeaderElectionDriverLock.get();
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+                        .build()) {
+            jobManagerRunner.start();
 
-        jobManagerRunner.start();
-        final TestingLeaderElectionDriver currentLeaderDriver =
-                Preconditions.checkNotNull(
-                        testingLeaderElectionDriverFactory.getCurrentLeaderDriver());
-        // grant leadership to create jobMasterServiceProcess.
-        currentLeaderDriver.isLeader();
-        assertThat(confirmSessionId)
-                .succeedsWithin(TESTING_TIMEOUT.getSize(), TESTING_TIMEOUT.getUnit());
-        while (!defaultLeaderElectionService.hasLeadership(confirmSessionId.get())) {
-            Thread.sleep(100);
+            final TestingLeaderElectionDriver currentLeaderDriver =
+                    Preconditions.checkNotNull(
+                            testingLeaderElectionDriverFactory.getCurrentLeaderDriver());
+            // grant leadership to create jobMasterServiceProcess
+            currentLeaderDriver.isLeader();
+
+            while (currentLeaderDriver.getLeaderInformation().getLeaderSessionID() == null
+                    || !defaultLeaderElectionService.hasLeadership(
+                            currentLeaderDriver.getLeaderInformation().getLeaderSessionID())) {
+                Thread.sleep(100);
+            }
+
+            final CheckedThread contenderCloseThread = createCheckedThread(jobManagerRunner::close);
+            contenderCloseThread.start();
+
+            // waiting for the contender reaching the synchronized section of the stop call
+            closeAsyncCalledTrigger.await();
+
+            final CheckedThread grantLeadershipThread =
+                    createCheckedThread(currentLeaderDriver::isLeader);
+            grantLeadershipThread.start();
+
+            // finalize ClassloaderLease release to trigger DefaultLeaderElectionService#stop
+            triggerClassLoaderLeaseRelease.trigger();
+
+            contenderCloseThread.sync();
+            grantLeadershipThread.sync();
         }
+    }
 
-        final CheckedThread contenderCloseThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() {
-                        try {
-                            jobManagerRunner.closeAsync();
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                };
-        contenderCloseThread.start();
-
-        // grant leadership.
-        currentLeaderDriver.isLeader();
-
-        contenderCloseThread.sync();
+    private static CheckedThread createCheckedThread(
+            ThrowingRunnable<? extends Exception> callback) {
+        return new CheckedThread() {
+            @Override
+            public void go() throws Exception {
+                callback.run();
+            }
+        };
     }
 
     private void assertJobManagerRunnerStarted() throws Exception {
