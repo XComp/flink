@@ -39,6 +39,8 @@
 
 ## Verifying this change
 
+Please make sure both new and modified tests in this PR follows the conventions defined in our code quality guide: https://flink.apache.org/contributing/code-style-and-quality-common.html#testing
+
 *(Please pick either of the following options)*
 
 This change is a trivial rework / code cleanup without any test coverage.
@@ -55,18 +57,40 @@ This change added tests and can be verified as follows:
   - *Added integration tests for end-to-end deployment with large payloads (100MB)*
   - *Extended integration test for recovery after master (JobManager) failure*
   - *Added test that validates that TaskInfo is transferred only once across recoveries*
-  - *Manually verified the change by running a 4 node cluser with 2 JobManagers and 4 TaskManagers, a stateful streaming program, and killing one JobManager and two TaskManagers during the execution, verifying that recovery happens correctly.*
+  - *Manually verified the change by running a 4 node cluster with 2 JobManagers and 4 TaskManagers, a stateful streaming program, and killing one JobManager and two TaskManagers during the execution, verifying that recovery happens correctly.*
 
 ## Does this pull request potentially affect one of the following parts:
 
-  - Dependencies (does it add or upgrade a dependency): (yes / no)
-  - The public API, i.e., is any changed class annotated with `@Public(Evolving)`: (yes / no)
-  - The serializers: (yes / no / don't know)
-  - The runtime per-record code paths (performance sensitive): (yes / no / don't know)
-  - Anything that affects deployment or recovery: JobManager (and its components), Checkpointing, Kubernetes/Yarn/Mesos, ZooKeeper: (yes / no / don't know)
-  - The S3 file system connector: (yes / no / don't know)
+  - Dependencies (does it add or upgrade a dependency):
+    [ ] yes
+    [ ] no
+  - The public API, i.e., is any changed class annotated with `@Public(Evolving)`:
+    [ ] yes
+    [ ] no
+  - The serializers:
+    [ ] yes
+    [ ] no
+    [ ] don't know
+  - The runtime per-record code paths (performance sensitive):
+    [ ] yes
+    [ ] no
+    [ ] don't know
+  - Anything that affects deployment or recovery: JobManager (and its components), Checkpointing, Kubernetes/Yarn, ZooKeeper:
+    [ ] yes
+    [ ] no
+    [ ] don't know
+  - The S3 file system connector:
+    [ ] yes
+    [ ] no
+    [ ] don't know
 
 ## Documentation
 
-  - Does this pull request introduce a new feature? (yes / no)
-  - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
+  - Does this pull request introduce a new feature?
+    [ ] yes
+    [ ] no
+  - If yes, how is the feature documented?
+    [ ] not applicable
+    [ ] docs
+    [ ] JavaDocs
+    [ ] not documented
