@@ -44,7 +44,23 @@ public class GenericRowDataKeySelector implements RowDataKeySelector {
         this.keySerializer = keySerializer;
     }
 
-    public void open() {
+    /**
+     * Compiles projection class in advance using context classloader.
+     *
+     * <p>Note: this method should be called only from main Flink thread.
+     */
+    public void compileProjection() {
+        generatedProjection.compile(Thread.currentThread().getContextClassLoader());
+    }
+
+    /**
+     * Creates projection instance in advance.
+     *
+     * <p>Note: if projection was already compiled by {@link this#compileProjection()}, {@code
+     * Class<Projection>} should be already cached inside {@link GeneratedProjection}, so no
+     * compilation and other actions with classLoader will happen.
+     */
+    public void open() throws Exception {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         //noinspection unchecked
         projection = generatedProjection.newInstance(cl);
