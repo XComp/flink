@@ -100,24 +100,18 @@ fi
 # Step 2: Run tests
 # =============================================================================
 
-if [ $STAGE == $STAGE_PYTHON ]; then
-	sed -i "s/\(^appender\.file\.fileName = \).*$/\1\$\{sys:log\.file\}/g" ${HERE}/log4j.properties
-	run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
-	EXIT_CODE=$?
-else
+for run_id in $(seq 1 10000); do
 	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
-	if [ $STAGE = $STAGE_FINEGRAINED_RESOURCE_MANAGEMENT ]; then
-		if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
-			echo "Skipping fine grained resource management test stage in adaptive scheduler job"
-			exit 0
-		fi
-		MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -Dflink.tests.enable-fine-grained"
-	fi
-	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
+	MVN_TEST_MODULES="-pl flink-table/flink-table-planner"
+	TEST_CLASS="org.apache.flink.table.planner.runtime.batch.sql.join.LookupJoinITCase"
 
-	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
+	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify -Dtest=$TEST_CLASS" $CALLBACK_ON_TIMEOUT
 	EXIT_CODE=$?
-fi
+
+	if [[ "$EXIT_CODE" != "0" ]]; then
+	  break
+	fi
+done
 
 # =============================================================================
 # Step 3: Put extra logs into $DEBUG_FILES_OUTPUT_DIR
