@@ -68,7 +68,6 @@ public class InputFormatCacheLoader extends CacheLoader {
         super.open(parameters);
         this.parameters = parameters;
         this.initialInputFormat.configure(parameters);
-        this.keySelector.compileProjection();
     }
 
     @Override
@@ -132,10 +131,8 @@ public class InputFormatCacheLoader extends CacheLoader {
             InputFormat<RowData, InputSplit> inputFormat =
                     InstantiationUtil.clone(initialInputFormat);
             inputFormat.configure(parameters);
-            GenericRowDataKeySelector keySelectorCopy = keySelector.copy();
-            keySelectorCopy.open();
             return new InputSplitCacheLoadTask(
-                    newCache, keySelectorCopy, cacheEntriesSerializer, inputFormat, inputSplit);
+                    newCache, keySelector.copy(), cacheEntriesSerializer, inputFormat, inputSplit);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create InputFormatCacheLoadTask", e);
         }

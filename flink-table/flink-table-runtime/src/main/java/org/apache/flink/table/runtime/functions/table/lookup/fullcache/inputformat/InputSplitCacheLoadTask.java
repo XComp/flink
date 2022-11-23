@@ -57,6 +57,7 @@ public class InputSplitCacheLoadTask implements Runnable {
         this.inputFormat = inputFormat;
         this.cacheEntriesSerializer = cacheEntriesSerializer;
         this.inputSplit = inputSplit;
+        keySelector.open();
     }
 
     @Override
