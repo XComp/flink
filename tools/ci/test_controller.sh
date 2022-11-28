@@ -103,7 +103,7 @@ fi
 for run_id in $(seq 1 10000); do
 	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
 	MVN_TEST_MODULES="-pl flink-table/flink-table-planner"
-	TEST_CLASS="org.apache.flink.table.planner.runtime.batch.sql.join.LookupJoinITCase"
+	TEST_CLASS="*LookupJoinITCase"
 
   echo "########## Test run ${run_id}. ##########"
 	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify -Dtest=$TEST_CLASS" $CALLBACK_ON_TIMEOUT
