@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingContender;
@@ -120,6 +121,7 @@ class ZooKeeperLeaderRetrievalTest {
         long sleepingTime = 1000;
 
         LeaderElectionService leaderElectionService = null;
+        LeaderElection leaderElection = null;
 
         Thread thread;
 
@@ -191,7 +193,7 @@ class ZooKeeperLeaderRetrievalTest {
                 externalProcessDriver.notLeader();
                 externalProcessDriver.close();
 
-                leaderElectionService.start(correctLeaderAddressContender);
+                correctLeaderAddressContender.startLeaderElection();
 
                 thread.join();
 

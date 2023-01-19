@@ -761,8 +761,12 @@ class JobMasterServiceLeadershipRunnerTest {
             currentLeaderDriver.isLeader();
 
             while (currentLeaderDriver.getLeaderInformation().getLeaderSessionID() == null
-                    || !defaultLeaderElectionService.hasLeadership(
-                            currentLeaderDriver.getLeaderInformation().getLeaderSessionID())) {
+                    || !jobManagerRunner
+                            .getLeaderElection()
+                            .hasLeadership(
+                                    currentLeaderDriver
+                                            .getLeaderInformation()
+                                            .getLeaderSessionID())) {
                 Thread.sleep(100);
             }
 
