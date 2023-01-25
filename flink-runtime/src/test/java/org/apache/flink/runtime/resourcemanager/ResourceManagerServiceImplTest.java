@@ -25,6 +25,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -77,6 +78,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
     private TestingResourceManagerFactory.Builder rmFactoryBuilder;
     private TestingLeaderElectionService leaderElectionService;
+
     private ResourceManagerServiceImpl resourceManagerService;
 
     @BeforeClass
@@ -103,10 +105,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
             resourceManagerService.close();
         }
 
-        if (leaderElectionService != null) {
-            leaderElectionService.stop();
-        }
-
         if (fatalErrorHandler.hasExceptionOccurred()) {
             fatalErrorHandler.rethrowError();
         }
@@ -114,6 +112,8 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
     @AfterClass
     public static void teardownClass() throws Exception {
+        haService.closeAndCleanupAllData();
+
         if (rpcService != null) {
             RpcUtils.terminateRpcService(rpcService);
         }

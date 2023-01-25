@@ -55,4 +55,10 @@ class DefaultLeaderElection implements LeaderElection {
     public boolean hasLeadership(UUID leaderSessionId) {
         return parentService.hasLeadership(leaderSessionId);
     }
+
+    @Override
+    public void close() throws Exception {
+        parentService.remove(leaderContender);
+        leaderContender = null;
+    }
 }

@@ -37,8 +37,8 @@ public class TestingLeaderElectionService implements LeaderElectionService {
     }
 
     @Override
-    public synchronized void stop() throws Exception {
-        startedLeaderElection.triggerContenderCleanup();
+    public synchronized void remove(LeaderContender contender) {
+        startedLeaderElection.close();
     }
 
     public synchronized CompletableFuture<LeaderInformation> isLeader(UUID leaderSessionID) {
