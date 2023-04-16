@@ -272,7 +272,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
     private DispatcherRunner createDispatcherRunner() throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
-                dispatcherLeaderElectionService,
+                dispatcherLeaderElectionService.createLeaderElection(),
                 fatalErrorHandler,
                 new TestingJobPersistenceComponentFactory(jobGraphStore, jobResultStore),
                 EXECUTOR_RESOURCE.getExecutor(),

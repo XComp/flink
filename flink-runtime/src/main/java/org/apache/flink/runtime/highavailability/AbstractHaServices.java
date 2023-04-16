@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -110,22 +111,22 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public LeaderElectionService getResourceManagerLeaderElectionService() throws Exception {
+    public LeaderElection getResourceManagerLeaderElection() throws Exception {
         return createLeaderElectionService(getLeaderPathForResourceManager());
     }
 
     @Override
-    public LeaderElectionService getDispatcherLeaderElectionService() throws Exception {
+    public LeaderElection getDispatcherLeaderElection() throws Exception {
         return createLeaderElectionService(getLeaderPathForDispatcher());
     }
 
     @Override
-    public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) throws Exception {
+    public LeaderElection getJobManagerLeaderElection(JobID jobID) throws Exception {
         return createLeaderElectionService(getLeaderPathForJobManager(jobID));
     }
 
     @Override
-    public LeaderElectionService getClusterRestEndpointLeaderElectionService() throws Exception {
+    public LeaderElection getClusterRestEndpointLeaderElection() throws Exception {
         return createLeaderElectionService(getLeaderPathForRestServer());
     }
 
@@ -240,13 +241,13 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                 executor);
     }
 
-    private LeaderElectionService createLeaderElectionService(String leaderName) throws Exception {
+    private LeaderElection createLeaderElectionService(String leaderName) throws Exception {
         final DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(createLeaderElectionDriverFactory(leaderName));
         leaderElectionService.startLeaderElectionBackend();
 
         closeableRegistry.registerCloseable(leaderElectionService);
-        return leaderElectionService;
+        return leaderElectionService.createLeaderElection();
     }
 
     /**

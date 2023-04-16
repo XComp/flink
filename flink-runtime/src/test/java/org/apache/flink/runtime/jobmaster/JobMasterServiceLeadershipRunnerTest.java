@@ -852,7 +852,7 @@ class JobMasterServiceLeadershipRunnerTest {
         public JobMasterServiceLeadershipRunner build() {
             return new JobMasterServiceLeadershipRunner(
                     jobMasterServiceProcessFactory,
-                    leaderElectionService,
+                    leaderElectionService.createLeaderElection(),
                     jobResultStore,
                     classLoaderLease,
                     fatalErrorHandler);

@@ -157,10 +157,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
         haServices.setJobGraphStore(jobGraphStore);
 
-        // Construct leader election service.
+        // Construct leader election.
         final TestingLeaderElectionService leaderElectionService =
                 new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(jobId, leaderElectionService);
+        haServices.setJobMasterLeaderElectionService(
+                jobId, leaderElectionService.createLeaderElection());
 
         // start the dispatcher with enough retries on cleanup
         final JobManagerRunnerRegistry jobManagerRunnerRegistry =
@@ -283,10 +284,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
         haServices.setJobGraphStore(jobGraphStore);
 
-        // Construct leader election service.
+        // Construct leader election.
         final TestingLeaderElectionService leaderElectionService =
                 new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(jobId, leaderElectionService);
+        haServices.setJobMasterLeaderElectionService(
+                jobId, leaderElectionService.createLeaderElection());
 
         // start the dispatcher with no retries on cleanup
         configuration.set(

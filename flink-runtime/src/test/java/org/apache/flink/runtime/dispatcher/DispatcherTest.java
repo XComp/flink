@@ -64,7 +64,7 @@ import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -162,7 +162,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         jobId = jobGraph.getJobID();
         jobMasterLeaderElectionService = new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(jobId, jobMasterLeaderElectionService);
+        haServices.setJobMasterLeaderElectionService(
+                jobId, jobMasterLeaderElectionService.createLeaderElection());
     }
 
     @Nonnull
@@ -833,7 +834,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     public void testJobStatusIsShownDuringTermination() throws Exception {
         final JobID blockingId = new JobID();
         haServices.setJobMasterLeaderElectionService(
-                blockingId, new TestingLeaderElectionService());
+                blockingId, new TestingLeaderElectionService().createLeaderElection());
         final JobManagerRunnerWithBlockingTerminationFactory jobManagerRunnerFactory =
                 new JobManagerRunnerWithBlockingTerminationFactory(blockingId);
         dispatcher =
@@ -1339,7 +1340,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final TestingLeaderElectionService jobMasterLeaderElectionService =
                 new TestingLeaderElectionService();
         haServices.setJobMasterLeaderElectionService(
-                jobGraph.getJobID(), jobMasterLeaderElectionService);
+                jobGraph.getJobID(), jobMasterLeaderElectionService.createLeaderElection());
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
         assertThatFuture(dispatcherGateway.submitJob(jobGraph, TIMEOUT)).eventuallySucceeds();
@@ -1498,8 +1499,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             jobMasterServiceFactory),
-                    highAvailabilityServices.getJobManagerLeaderElectionService(
-                            jobGraph.getJobID()),
+                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
@@ -1571,8 +1571,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                 jobMasterServiceFutures.offer(result));
                                         return result;
                                     })),
-                    highAvailabilityServices.getJobManagerLeaderElectionService(
-                            jobGraph.getJobID()),
+                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
@@ -1623,8 +1622,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             new TestingJobMasterServiceFactory()),
-                    highAvailabilityServices.getJobManagerLeaderElectionService(
-                            jobGraph.getJobID()),
+                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
@@ -1647,13 +1645,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobID jobIdToBlock,
                 CompletableFuture<Void> future,
                 JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
-                LeaderElectionService leaderElectionService,
+                LeaderElection leaderElection,
                 JobResultStore jobResultStore,
                 LibraryCacheManager.ClassLoaderLease classLoaderLease,
                 FatalErrorHandler fatalErrorHandler) {
             super(
                     jobMasterServiceProcessFactory,
-                    leaderElectionService,
+                    leaderElection,
                     jobResultStore,
                     classLoaderLease,
                     fatalErrorHandler);

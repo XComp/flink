@@ -387,7 +387,7 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
     private DispatcherRunner createDispatcherRunner() throws Exception {
         return DefaultDispatcherRunner.create(
-                testingLeaderElectionService,
+                testingLeaderElectionService.createLeaderElection(),
                 testingFatalErrorHandler,
                 testingDispatcherLeaderProcessFactory);
     }

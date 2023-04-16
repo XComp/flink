@@ -153,7 +153,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                         .asCuratorFramework();
         try (final TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setDispatcherLeaderElectionService(dispatcherLeaderElectionService)
+                        .setDispatcherLeaderElection(
+                                dispatcherLeaderElectionService.createLeaderElection())
                         .setJobMasterLeaderRetrieverFunction(
                                 jobId -> ZooKeeperUtils.createLeaderRetrievalService(client))
                         .build()) {
@@ -242,7 +243,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
             DispatcherRunnerFactory dispatcherRunnerFactory)
             throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
-                dispatcherLeaderElectionService,
+                dispatcherLeaderElectionService.createLeaderElection(),
                 fatalErrorHandler,
                 jobPersistenceComponentFactory,
                 EXECUTOR_RESOURCE.getExecutor(),

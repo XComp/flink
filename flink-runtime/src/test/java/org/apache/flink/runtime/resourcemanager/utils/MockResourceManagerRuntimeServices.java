@@ -48,7 +48,8 @@ public class MockResourceManagerRuntimeServices {
         this.slotManager = slotManager;
         highAvailabilityServices = new TestingHighAvailabilityServices();
         rmLeaderElectionService = new TestingLeaderElectionService();
-        highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+        highAvailabilityServices.setResourceManagerLeaderElection(
+                rmLeaderElectionService.createLeaderElection());
         heartbeatServices = new TestingHeartbeatServices();
         delegationTokenManager = new NoOpDelegationTokenManager();
         jobLeaderIdService =

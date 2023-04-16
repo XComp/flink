@@ -95,7 +95,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         rmFactoryBuilder = new TestingResourceManagerFactory.Builder();
 
         leaderElectionService = new TestingLeaderElectionService();
-        haService.setResourceManagerLeaderElectionService(leaderElectionService);
+        haService.setResourceManagerLeaderElection(leaderElectionService.createLeaderElection());
     }
 
     @After

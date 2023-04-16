@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 
 import org.junit.jupiter.api.Test;
@@ -40,28 +39,26 @@ class StandaloneLeaderElectionTest {
      */
     @Test
     void testStandaloneLeaderElectionRetrieval() throws Exception {
-        StandaloneLeaderElectionService leaderElectionService =
-                new StandaloneLeaderElectionService();
+        final UUID expectedSessionID = UUID.randomUUID();
         StandaloneLeaderRetrievalService leaderRetrievalService =
-                new StandaloneLeaderRetrievalService(
-                        TEST_URL, HighAvailabilityServices.DEFAULT_LEADER_ID);
-        TestingContender contender = new TestingContender(TEST_URL, leaderElectionService);
+                new StandaloneLeaderRetrievalService(TEST_URL, expectedSessionID);
         TestingListener testingListener = new TestingListener();
 
-        try (LeaderElection leaderElection = contender.startLeaderElection()) {
+        try (LeaderElection leaderElection = new StandaloneLeaderElection(expectedSessionID)) {
+            TestingContender contender = new TestingContender(TEST_URL, leaderElection);
+            contender.startLeaderElection();
+
             leaderRetrievalService.start(testingListener);
 
             contender.waitForLeader();
 
             assertThat(contender.isLeader()).isTrue();
-            assertThat(contender.getLeaderSessionID())
-                    .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
+            assertThat(contender.getLeaderSessionID()).isEqualTo(expectedSessionID);
 
             testingListener.waitForNewLeader();
 
             assertThat(testingListener.getAddress()).isEqualTo(TEST_URL);
-            assertThat(testingListener.getLeaderSessionID())
-                    .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
+            assertThat(testingListener.getLeaderSessionID()).isEqualTo(expectedSessionID);
         } finally {
             leaderRetrievalService.stop();
         }

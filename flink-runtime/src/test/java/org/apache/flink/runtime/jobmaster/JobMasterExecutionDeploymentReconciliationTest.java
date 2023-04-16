@@ -92,7 +92,8 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
     @Before
     public void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
+        haServices.setResourceManagerLeaderElection(
+                resourceManagerLeaderElectionService.createLeaderElection());
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
     }
 

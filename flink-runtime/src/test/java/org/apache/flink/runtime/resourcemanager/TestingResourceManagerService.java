@@ -176,7 +176,8 @@ public class TestingResourceManagerService implements ResourceManagerService {
 
             final TestingHighAvailabilityServices haServices =
                     new TestingHighAvailabilityServices();
-            haServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+            haServices.setResourceManagerLeaderElection(
+                    rmLeaderElectionService.createLeaderElection());
             if (jmLeaderRetrieverFunction != null) {
                 haServices.setJobMasterLeaderRetrieverFunction(jmLeaderRetrieverFunction);
             }
