@@ -27,29 +27,37 @@ import java.util.UUID;
 public abstract class AbstractLeaderElectionService implements LeaderElectionService {
 
     @Override
-    public LeaderElection createLeaderElection() {
-        return new DefaultLeaderElection(this);
+    public LeaderElection createLeaderElection(String contenderID) {
+        return new DefaultLeaderElection(this, contenderID);
     }
 
     /**
-     * Registers the given {@link LeaderContender} with the underlying {@code
-     * LeaderElectionService}. Leadership changes are starting to be reported to the {@code
-     * LeaderContender}.
+     * Registers the given {@link LeaderContender} under the passed {@code contenderID} with the
+     * underlying {@code LeaderElectionService}. Leadership changes are starting to be reported to
+     * the {@code LeaderContender}.
      */
-    protected abstract void register(LeaderContender contender) throws Exception;
+    protected abstract void register(String contenderID, LeaderContender contender)
+            throws Exception;
 
-    /** Removes the passed {@code LeaderContender} from the {@code LeaderElectionService}. */
-    protected abstract void remove(LeaderContender contender);
+    /**
+     * Removes the {@code LeaderContender} from the {@code LeaderElectionService} that is associated
+     * with the passed {@code contenderID}.
+     */
+    protected abstract void remove(String contenderID);
 
-    /** Confirms the leadership with the given session ID and address. */
-    protected abstract void confirmLeadership(UUID leaderSessionID, String leaderAddress);
+    /**
+     * Confirms the leadership with the given session ID and address for the passed {@code
+     * contenderID}.
+     */
+    protected abstract void confirmLeadership(
+            String contenderID, UUID leaderSessionID, String leaderAddress);
 
     /**
      * Checks whether the {@code LeaderElectionService} has the leadership acquired for the given
-     * session ID.
+     * {@code contenderID} and session ID.
      *
      * @return {@code true} if the service has leadership with the passed session ID acquired;
      *     {@code false} otherwise.
      */
-    protected abstract boolean hasLeadership(UUID leaderSessionId);
+    protected abstract boolean hasLeadership(String contenderID, UUID leaderSessionId);
 }

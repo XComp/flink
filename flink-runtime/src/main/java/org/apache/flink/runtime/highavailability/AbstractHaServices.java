@@ -247,7 +247,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         leaderElectionService.startLeaderElectionBackend();
 
         closeableRegistry.registerCloseable(leaderElectionService);
-        return leaderElectionService.createLeaderElection();
+        return leaderElectionService.createLeaderElection(leaderName);
     }
 
     /**
