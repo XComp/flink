@@ -44,7 +44,8 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
@@ -145,16 +146,14 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
     @Test
     public void testResourceCleanupUnderLeadershipChange() throws Exception {
         final TestingRpcService rpcService = testingRpcServiceResource.getTestingRpcService();
-        final TestingLeaderElectionService dispatcherLeaderElectionService =
-                new TestingLeaderElectionService();
+        final TestingLeaderElection dispatcherLeaderElection = new TestingLeaderElection();
 
         final CuratorFramework client =
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler)
                         .asCuratorFramework();
         try (final TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setDispatcherLeaderElection(
-                                dispatcherLeaderElectionService.createLeaderElection())
+                        .setDispatcherLeaderElection(dispatcherLeaderElection)
                         .setJobMasterLeaderRetrieverFunction(
                                 jobId -> ZooKeeperUtils.createLeaderRetrievalService(client))
                         .build()) {
@@ -181,7 +180,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
             try (final DispatcherRunner dispatcherRunner =
                     createDispatcherRunner(
                             rpcService,
-                            dispatcherLeaderElectionService,
+                            dispatcherLeaderElection,
                             new JobPersistenceComponentFactory() {
                                 @Override
                                 public JobGraphStore createJobGraphStore() {
@@ -197,18 +196,17 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                             defaultDispatcherRunnerFactory)) {
 
                 // initial run
-                DispatcherGateway dispatcherGateway =
-                        grantLeadership(dispatcherLeaderElectionService);
+                DispatcherGateway dispatcherGateway = grantLeadership(dispatcherLeaderElection);
 
                 final JobGraph jobGraph = createJobGraphWithBlobs();
                 LOG.info("Initial job submission {}.", jobGraph.getJobID());
                 dispatcherGateway.submitJob(jobGraph, TESTING_TIMEOUT).get();
 
-                dispatcherLeaderElectionService.notLeader();
+                dispatcherLeaderElection.notLeader();
 
                 // recovering submitted jobs
                 LOG.info("Re-grant leadership first time.");
-                dispatcherGateway = grantLeadership(dispatcherLeaderElectionService);
+                dispatcherGateway = grantLeadership(dispatcherLeaderElection);
 
                 LOG.info("Cancel recovered job {}.", jobGraph.getJobID());
                 // cancellation of the job should remove everything
@@ -221,7 +219,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 
                 assertThat(jobResult.getApplicationStatus(), is(ApplicationStatus.CANCELED));
 
-                dispatcherLeaderElectionService.notLeader();
+                dispatcherLeaderElection.notLeader();
 
                 // check that the job has been removed from ZooKeeper
                 final JobGraphStore submittedJobGraphStore = createZooKeeperJobGraphStore(client);
@@ -237,13 +235,13 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 
     private DispatcherRunner createDispatcherRunner(
             TestingRpcService rpcService,
-            TestingLeaderElectionService dispatcherLeaderElectionService,
+            LeaderElection dispatcherLeaderElection,
             JobPersistenceComponentFactory jobPersistenceComponentFactory,
             PartialDispatcherServices partialDispatcherServices,
             DispatcherRunnerFactory dispatcherRunnerFactory)
             throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
-                dispatcherLeaderElectionService.createLeaderElection(),
+                dispatcherLeaderElection,
                 fatalErrorHandler,
                 jobPersistenceComponentFactory,
                 EXECUTOR_RESOURCE.getExecutor(),
@@ -260,10 +258,9 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
         }
     }
 
-    private DispatcherGateway grantLeadership(
-            TestingLeaderElectionService dispatcherLeaderElectionService)
+    private DispatcherGateway grantLeadership(TestingLeaderElection dispatcherLeaderElection)
             throws InterruptedException, java.util.concurrent.ExecutionException {
-        return dispatcherLeaderElectionService
+        return dispatcherLeaderElection
                 .isLeader(UUID.randomUUID())
                 .thenCompose(
                         leaderInformation ->

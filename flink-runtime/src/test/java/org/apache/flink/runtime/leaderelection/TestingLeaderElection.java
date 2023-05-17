@@ -76,10 +76,6 @@ public class TestingLeaderElection implements LeaderElection {
         return hasLeadership() && leaderSessionId.equals(issuedLeaderSessionId);
     }
 
-    private boolean hasLeadership() {
-        return issuedLeaderSessionId != null;
-    }
-
     @Override
     public synchronized void close() {
         if (hasLeadership() && this.contender != null) {
@@ -97,6 +93,10 @@ public class TestingLeaderElection implements LeaderElection {
         this.contender = null;
         startFuture.cancel(false);
         startFuture = new CompletableFuture<>();
+    }
+
+    private boolean hasLeadership() {
+        return issuedLeaderSessionId != null;
     }
 
     /**
@@ -119,21 +119,6 @@ public class TestingLeaderElection implements LeaderElection {
             contender.grantLeadership(leaderSessionID);
         }
 
-        return confirmationFuture;
-    }
-
-    /**
-     * Returns the confirmed leader information future.
-     *
-     * @return the future for the {@link #confirmLeadership(UUID, String)} call that corresponds to
-     *     the most-recent {@link #isLeader(UUID)} call or {@code null} if no leadership was
-     *     acquired, yet.
-     * @deprecated This is out-dated API that shall be removed with {@link
-     *     TestingLeaderElectionService} (see FLINK-31797).
-     */
-    @Deprecated
-    @Nullable
-    CompletableFuture<LeaderInformation> getConfirmedLeaderInformation() {
         return confirmationFuture;
     }
 

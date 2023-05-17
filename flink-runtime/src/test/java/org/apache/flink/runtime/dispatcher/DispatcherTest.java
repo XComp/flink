@@ -65,7 +65,7 @@ import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFacto
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
@@ -151,7 +151,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     private JobID jobId;
 
-    private TestingLeaderElectionService jobMasterLeaderElectionService;
+    private TestingLeaderElection jobMasterLeaderElection;
 
     /** Instance under test. */
     private TestingDispatcher dispatcher;
@@ -161,9 +161,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         super.setUp();
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         jobId = jobGraph.getJobID();
-        jobMasterLeaderElectionService = new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(
-                jobId, jobMasterLeaderElectionService.createLeaderElection());
+        jobMasterLeaderElection = new TestingLeaderElection();
+        haServices.setJobMasterLeaderElectionService(jobId, jobMasterLeaderElection);
     }
 
     @Nonnull
@@ -189,6 +188,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         if (dispatcher != null) {
             RpcUtils.terminateRpcEndpoint(dispatcher);
         }
+        // jobMasterLeaderElection is closed as part of the haServices close call
         super.tearDown();
     }
 
@@ -206,11 +206,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-        jobMasterLeaderElectionService.getStartFuture().get();
+        jobMasterLeaderElection.getStartFuture().get();
 
         assertTrue(
                 "jobManagerRunner was not started",
-                jobMasterLeaderElectionService.getStartFuture().isDone());
+                jobMasterLeaderElection.getStartFuture().isDone());
     }
 
     @Test
@@ -313,7 +313,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 new JobManagerRunnerWithBlockingJobMasterFactory();
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         blockingJobMaster.waitForBlockingInit();
@@ -371,7 +371,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 new CancellableJobManagerRunnerWithInitializedJobFactory(jobId);
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, runnerFactory);
 
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
@@ -408,7 +408,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         heartbeatServices,
                         haServices,
                         new FinishingJobManagerRunnerFactory(jobTerminationFuture, () -> {}));
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         JobID jobId = jobGraph.getJobID();
@@ -442,7 +442,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         heartbeatServices,
                         haServices,
                         new FinishingJobManagerRunnerFactory(jobTerminationFuture, () -> {}));
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         JobID jobId = jobGraph.getJobID();
@@ -488,7 +488,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                 })
                         .build(rpcService);
         dispatcher.start();
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         JobID jobId = jobGraph.getJobID();
@@ -519,7 +519,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices, haServices, testingJobManagerRunnerFactory);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         final JobGraph emptyJobGraph =
@@ -693,7 +693,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
             BiConsumer<TestingJobManagerRunner, Exception> jobManagerRunnerWithErrorConsumer)
             throws Exception {
         final FlinkException testException = new FlinkException("Expected test exception");
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
                 new TestingJobMasterServiceLeadershipRunnerFactory();
@@ -833,8 +833,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testJobStatusIsShownDuringTermination() throws Exception {
         final JobID blockingId = new JobID();
-        haServices.setJobMasterLeaderElectionService(
-                blockingId, new TestingLeaderElectionService().createLeaderElection());
+        haServices.setJobMasterLeaderElectionService(blockingId, new TestingLeaderElection());
         final JobManagerRunnerWithBlockingTerminationFactory jobManagerRunnerFactory =
                 new JobManagerRunnerWithBlockingTerminationFactory(blockingId);
         dispatcher =
@@ -936,7 +935,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         haServices,
                         new InitializationTimestampCapturingJobManagerRunnerFactory(
                                 initializationTimestampQueue));
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -955,7 +954,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -973,7 +972,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         // run first job, which completes with SUSPENDED
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -995,7 +994,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         // run first job, which completes with SUSPENDED
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -1018,7 +1017,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -1180,7 +1179,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         JobMasterServiceLeadershipRunnerFactory.INSTANCE);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
@@ -1224,7 +1223,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         JobMasterServiceLeadershipRunnerFactory.INSTANCE);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
@@ -1264,7 +1263,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         assertThatFuture(
                         dispatcherGateway.updateJobResourceRequirements(
@@ -1337,11 +1336,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
             JobManagerRunnerWithBlockingJobMasterFactory blockingJobMaster,
             JobGraph jobGraph)
             throws Exception {
-        final TestingLeaderElectionService jobMasterLeaderElectionService =
-                new TestingLeaderElectionService();
-        haServices.setJobMasterLeaderElectionService(
-                jobGraph.getJobID(), jobMasterLeaderElectionService.createLeaderElection());
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        final TestingLeaderElection jobMasterLeaderElection = new TestingLeaderElection();
+        haServices.setJobMasterLeaderElectionService(jobGraph.getJobID(), jobMasterLeaderElection);
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         assertThatFuture(dispatcherGateway.submitJob(jobGraph, TIMEOUT)).eventuallySucceeds();
         blockingJobMaster.unblockJobMasterInitialization();
@@ -1380,7 +1377,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         blockingJobMaster.waitForBlockingInit();
