@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** ZooKeeper based {@link MultipleComponentLeaderElectionDriver} implementation. */
@@ -184,7 +185,7 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     @Override
     public void isLeader() {
         LOG.debug("{} obtained the leadership.", this);
-        leaderElectionListener.isLeader();
+        leaderElectionListener.isLeader(UUID.randomUUID());
     }
 
     @Override

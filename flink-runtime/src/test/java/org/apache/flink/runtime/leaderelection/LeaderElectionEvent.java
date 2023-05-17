@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.leaderelection;
 
 import java.util.Collection;
+import java.util.UUID;
 
 /** Leader election event. */
 public abstract class LeaderElectionEvent {
@@ -51,6 +52,17 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class IsLeaderEvent extends LeaderElectionEvent {
+
+        private final UUID newLeaderSessionID;
+
+        public IsLeaderEvent(UUID newLeaderSessionID) {
+            this.newLeaderSessionID = newLeaderSessionID;
+        }
+
+        public UUID getLeaderSessionID() {
+            return newLeaderSessionID;
+        }
+
         @Override
         public boolean isIsLeaderEvent() {
             return true;
