@@ -87,8 +87,8 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         return super.initializeHandlers(localAddressFuture);
     }
 
-    private static class NoOpElectionService implements LeaderElectionService {
-        private static final NoOpElectionService INSTANCE = new NoOpElectionService();
+    private enum NoOpElectionService implements LeaderElectionService {
+        INSTANCE;
 
         @Override
         public LeaderElection createLeaderElection() {
@@ -99,9 +99,8 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         public void stop() {}
     }
 
-    private static class NoOpLeaderElection implements LeaderElection {
-
-        private static final NoOpLeaderElection INSTANCE = new NoOpLeaderElection();
+    private enum NoOpLeaderElection implements LeaderElection {
+        INSTANCE;
 
         @Override
         public void startLeaderElection(LeaderContender contender) {}
