@@ -25,6 +25,7 @@ import java.util.UUID;
  * LeaderElection} handling.
  */
 public abstract class AbstractLeaderElectionService implements LeaderElectionService {
+
     @Override
     public LeaderElection createLeaderElection() {
         return new DefaultLeaderElection(this);

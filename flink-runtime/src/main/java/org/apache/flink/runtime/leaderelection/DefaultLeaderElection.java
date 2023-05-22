@@ -25,9 +25,11 @@ import javax.annotation.Nullable;
 import java.util.UUID;
 
 /**
- * {@code DefaultLeaderElection} implements the {@link LeaderElection} based on the {@link AbstractLeaderElectionService}.
+ * {@code DefaultLeaderElection} implements the {@link LeaderElection} based on the {@link
+ * AbstractLeaderElectionService}.
  */
 class DefaultLeaderElection implements LeaderElection {
+
     private final AbstractLeaderElectionService parentService;
     @Nullable private LeaderContender leaderContender;
 
