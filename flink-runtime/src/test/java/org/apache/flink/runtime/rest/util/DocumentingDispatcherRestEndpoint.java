@@ -25,8 +25,9 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.NoOpTransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
-import org.apache.flink.runtime.leaderelection.AbstractLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -86,20 +87,30 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         return super.initializeHandlers(localAddressFuture);
     }
 
-    private static class NoOpElectionService extends AbstractLeaderElectionService {
+    private static class NoOpElectionService implements LeaderElectionService {
         private static final NoOpElectionService INSTANCE = new NoOpElectionService();
 
         @Override
-        protected void register(final LeaderContender contender) throws Exception {}
+        public LeaderElection createLeaderElection() {
+            return NoOpLeaderElection.INSTANCE;
+        }
 
         @Override
-        public void stop() throws Exception {}
+        public void stop() {}
+    }
+
+    private static class NoOpLeaderElection implements LeaderElection {
+
+        private static final NoOpLeaderElection INSTANCE = new NoOpLeaderElection();
 
         @Override
-        protected void confirmLeadership(final UUID leaderSessionID, final String leaderAddress) {}
+        public void startLeaderElection(LeaderContender contender) {}
 
         @Override
-        protected boolean hasLeadership(UUID leaderSessionId) {
+        public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
+
+        @Override
+        public boolean hasLeadership(UUID leaderSessionId) {
             return false;
         }
     }
