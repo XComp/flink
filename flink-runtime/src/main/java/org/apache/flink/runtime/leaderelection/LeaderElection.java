@@ -33,9 +33,9 @@ public interface LeaderElection {
      * Confirms that the {@link LeaderContender} has accepted the leadership identified by the given
      * leader session id. It also publishes the leader address under which the leader is reachable.
      *
-     * <p>The idea behind this method is to establish an order between setting the new leader
-     * session ID in the {@link LeaderContender} and publishing the new leader session ID as well as
-     * the leader address to the leader retrieval services.
+     * <p>The intention of this method is to establish an order between setting the new leader
+     * session ID in the {@link LeaderContender} and publishing the new leader session ID and the
+     * related leader address to the leader retrieval services.
      *
      * @param leaderSessionID The new leader session ID
      * @param leaderAddress The address of the new leader
@@ -43,8 +43,8 @@ public interface LeaderElection {
     void confirmLeadership(UUID leaderSessionID, String leaderAddress);
 
     /**
-     * Returns true if the {@link LeaderContender} with which the service has been started owns
-     * currently the leadership under the given leader session id.
+     * Returns {@code true} if the service's {@link LeaderContender} has the leadership under the
+     * given leader session ID acquired.
      *
      * @param leaderSessionId identifying the current leader
      * @return true if the associated {@link LeaderContender} is the leader, otherwise false
