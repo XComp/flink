@@ -111,8 +111,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
     @AfterClass
     public static void teardownClass() throws Exception {
-        haService.closeAndCleanupAllData();
-
         if (rpcService != null) {
             RpcUtils.terminateRpcService(rpcService);
         }
