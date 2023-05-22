@@ -86,7 +86,6 @@ public class TestingLeaderElection implements LeaderElection {
         }
 
         this.contender = null;
-        issuedLeaderSessionId = null;
         startFuture.cancel(false);
         startFuture = new CompletableFuture<>();
     }
