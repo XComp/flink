@@ -50,7 +50,6 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -263,17 +262,17 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
     private DispatcherGateway grantLeadership(
             TestingLeaderElectionService dispatcherLeaderElectionService)
             throws InterruptedException, java.util.concurrent.ExecutionException {
-        final UUID leaderSessionId = UUID.randomUUID();
-        dispatcherLeaderElectionService.isLeader(leaderSessionId);
-        final LeaderConnectionInfo leaderConnectionInfo =
-                dispatcherLeaderElectionService.getConfirmationFuture().get();
-
-        return testingRpcServiceResource
-                .getTestingRpcService()
-                .connect(
-                        leaderConnectionInfo.getAddress(),
-                        DispatcherId.fromUuid(leaderSessionId),
-                        DispatcherGateway.class)
+        return dispatcherLeaderElectionService
+                .isLeader(UUID.randomUUID())
+                .thenCompose(
+                        leaderInformation ->
+                                testingRpcServiceResource
+                                        .getTestingRpcService()
+                                        .connect(
+                                                leaderInformation.getLeaderAddress(),
+                                                DispatcherId.fromUuid(
+                                                        leaderInformation.getLeaderSessionID()),
+                                                DispatcherGateway.class))
                 .get();
     }
 

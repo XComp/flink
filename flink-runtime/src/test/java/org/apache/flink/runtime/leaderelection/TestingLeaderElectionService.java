@@ -20,8 +20,6 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -31,38 +29,35 @@ import java.util.concurrent.CompletableFuture;
  */
 public class TestingLeaderElectionService implements LeaderElectionService {
 
-    @Nullable private TestingLeaderElection startedLeaderElection;
+    private final TestingLeaderElection startedLeaderElection = new TestingLeaderElection();
 
     @Override
     public synchronized LeaderElection createLeaderElection() {
-        startedLeaderElection = new TestingLeaderElection();
         return startedLeaderElection;
     }
 
     @Override
     public synchronized void stop() throws Exception {
-        Preconditions.checkState(startedLeaderElection != null, "No LeaderElection created, yet.");
-
-        startedLeaderElection = null;
+        startedLeaderElection.triggerContenderCleanup();
     }
 
-    public synchronized CompletableFuture<UUID> isLeader(UUID leaderSessionID) {
-        Preconditions.checkState(startedLeaderElection != null, "No LeaderElection created, yet.");
+    public synchronized CompletableFuture<LeaderInformation> isLeader(UUID leaderSessionID) {
+        return startedLeaderElection.isLeader(leaderSessionID);
+    }
 
-        return startedLeaderElection
-                .isLeader(leaderSessionID)
-                .thenApply(LeaderInformation::getLeaderSessionID);
+    public synchronized LeaderInformation isConfirmedLeader(UUID leaderSessionID) {
+        return startedLeaderElection.isConfirmedLeader(leaderSessionID);
     }
 
     public synchronized void notLeader() {
-        Preconditions.checkState(startedLeaderElection != null, "No LeaderElection created, yet.");
-
         startedLeaderElection.notLeader();
     }
 
     public synchronized String getAddress() {
-        Preconditions.checkState(startedLeaderElection != null, "No LeaderElection created, yet.");
+        return getConfirmedLeaderInformation().join().getLeaderAddress();
+    }
 
+    public synchronized CompletableFuture<LeaderInformation> getConfirmedLeaderInformation() {
         final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
                 startedLeaderElection.getConfirmedLeaderInformation();
 
@@ -70,7 +65,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
                 confirmedLeaderInformation != null, "The leadership wasn't acquired, yet.");
 
         if (confirmedLeaderInformation.isDone()) {
-            return confirmedLeaderInformation.join().getLeaderAddress();
+            return confirmedLeaderInformation;
         } else {
             throw new IllegalStateException("The leadership wasn't confirmed, yet.");
         }
@@ -83,14 +78,10 @@ public class TestingLeaderElectionService implements LeaderElectionService {
      * @return Future which is completed once this service has been started
      */
     public synchronized CompletableFuture<Void> getStartFuture() {
-        Preconditions.checkState(startedLeaderElection != null, "No LeaderElection created, yet.");
-
         return startedLeaderElection.getStartFuture();
     }
 
     public synchronized boolean isStopped() {
-        Preconditions.checkState(startedLeaderElection != null, "No LeaderElection created, yet.");
-
         return startedLeaderElection.isStopped();
     }
 }
