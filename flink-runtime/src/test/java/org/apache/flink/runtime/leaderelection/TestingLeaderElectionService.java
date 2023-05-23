@@ -53,6 +53,10 @@ public class TestingLeaderElectionService implements LeaderElectionService {
         startedLeaderElection.notLeader();
     }
 
+    public synchronized void triggerContenderCleanup() {
+        startedLeaderElection.triggerContenderCleanup();
+    }
+
     public synchronized String getAddress() {
         return getConfirmedLeaderInformation().join().getLeaderAddress();
     }
