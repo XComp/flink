@@ -112,22 +112,22 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     @Override
     public LeaderElection getResourceManagerLeaderElection() throws Exception {
-        return createLeaderElectionService(getLeaderPathForResourceManager());
+        return createLeaderElection(getLeaderPathForResourceManager());
     }
 
     @Override
     public LeaderElection getDispatcherLeaderElection() throws Exception {
-        return createLeaderElectionService(getLeaderPathForDispatcher());
+        return createLeaderElection(getLeaderPathForDispatcher());
     }
 
     @Override
     public LeaderElection getJobManagerLeaderElection(JobID jobID) throws Exception {
-        return createLeaderElectionService(getLeaderPathForJobManager(jobID));
+        return createLeaderElection(getLeaderPathForJobManager(jobID));
     }
 
     @Override
     public LeaderElection getClusterRestEndpointLeaderElection() throws Exception {
-        return createLeaderElectionService(getLeaderPathForRestServer());
+        return createLeaderElection(getLeaderPathForRestServer());
     }
 
     @Override
@@ -241,7 +241,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                 executor);
     }
 
-    private LeaderElection createLeaderElectionService(String leaderName) throws Exception {
+    private LeaderElection createLeaderElection(String leaderName) throws Exception {
         final DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(createLeaderElectionDriverFactory(leaderName));
         leaderElectionService.startLeaderElectionBackend();
