@@ -167,32 +167,32 @@ class DefaultLeaderElectionTest {
         }
 
         public static Builder newBuilder() {
-            return new Builder(
-                    contender -> {
-                        throw new UnsupportedOperationException("register not supported");
-                    },
-                    (leaderSessionID, address) -> {
-                        throw new UnsupportedOperationException("confirmLeadership not supported");
-                    },
-                    leaderSessionID -> {
-                        throw new UnsupportedOperationException("hasLeadership not supported");
-                    });
+            return new Builder()
+                    .setRegisterConsumer(
+                            contender -> {
+                                throw new UnsupportedOperationException("register not supported");
+                            })
+                    .setConfirmLeadershipConsumer(
+                            (leaderSessionID, address) -> {
+                                throw new UnsupportedOperationException(
+                                        "confirmLeadership not supported");
+                            })
+                    .setHasLeadershipFunction(
+                            leaderSessionID -> {
+                                throw new UnsupportedOperationException(
+                                        "hasLeadership not supported");
+                            });
         }
 
         private static class Builder {
 
-            private ThrowingConsumer<LeaderContender, Exception> registerConsumer;
-            private BiConsumer<UUID, String> confirmLeadershipConsumer;
-            private Function<UUID, Boolean> hasLeadershipFunction;
+            private ThrowingConsumer<LeaderContender, Exception> registerConsumer =
+                    ignoredContender -> {};
+            private BiConsumer<UUID, String> confirmLeadershipConsumer =
+                    (ignoredSessionID, ignoredAddress) -> {};
+            private Function<UUID, Boolean> hasLeadershipFunction = ignoredSessiondID -> false;
 
-            private Builder(
-                    ThrowingConsumer<LeaderContender, Exception> registerConsumer,
-                    BiConsumer<UUID, String> confirmLeadershipConsumer,
-                    Function<UUID, Boolean> hasLeadershipFunction) {
-                this.registerConsumer = registerConsumer;
-                this.confirmLeadershipConsumer = confirmLeadershipConsumer;
-                this.hasLeadershipFunction = hasLeadershipFunction;
-            }
+            private Builder() {}
 
             public Builder setRegisterConsumer(
                     ThrowingConsumer<LeaderContender, Exception> registerConsumer) {
