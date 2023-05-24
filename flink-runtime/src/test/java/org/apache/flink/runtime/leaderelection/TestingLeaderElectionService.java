@@ -45,10 +45,6 @@ public class TestingLeaderElectionService implements LeaderElectionService {
         return startedLeaderElection.isLeader(leaderSessionID);
     }
 
-    public synchronized LeaderInformation isConfirmedLeader(UUID leaderSessionID) {
-        return startedLeaderElection.isConfirmedLeader(leaderSessionID);
-    }
-
     public synchronized void notLeader() {
         startedLeaderElection.notLeader();
     }

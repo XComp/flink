@@ -113,10 +113,6 @@ public class TestingResourceManagerService implements ResourceManagerService {
         return leaderElectionService.isLeader(uuid);
     }
 
-    public LeaderInformation isConfirmedLeader(UUID leaderSessionID) {
-        return leaderElectionService.isConfirmedLeader(leaderSessionID);
-    }
-
     public void notLeader() {
         leaderElectionService.notLeader();
     }

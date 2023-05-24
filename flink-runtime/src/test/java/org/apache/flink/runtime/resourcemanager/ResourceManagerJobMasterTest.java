@@ -108,7 +108,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                         .build();
 
         resourceManagerService.start();
-        resourceManagerService.isConfirmedLeader(UUID.randomUUID());
+        resourceManagerService.isLeader(UUID.randomUUID()).join();
 
         resourceManagerGateway =
                 resourceManagerService

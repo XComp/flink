@@ -49,7 +49,7 @@ public class ResourceManagerHATest extends TestLogger {
 
             final UUID leaderId = UUID.randomUUID();
             final LeaderInformation confirmedLeaderInformation =
-                    resourceManagerService.isConfirmedLeader(leaderId);
+                    resourceManagerService.isLeader(leaderId).join();
 
             // after grant leadership, verify resource manager is started with the fencing token
             assertEquals(leaderId, confirmedLeaderInformation.getLeaderSessionID());

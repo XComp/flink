@@ -207,7 +207,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // first time grant leadership
-        leaderElectionService.isConfirmedLeader(leaderSessionId1);
+        leaderElectionService.isLeader(leaderSessionId1).join();
 
         // second time grant leadership
         final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
@@ -242,7 +242,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // first time grant leadership
-        leaderElectionService.isConfirmedLeader(leaderSessionId1);
+        leaderElectionService.isLeader(leaderSessionId1).join();
 
         // second time grant leadership
         final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
@@ -304,7 +304,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // grant leadership
-        leaderElectionService.isConfirmedLeader(leaderSessionId);
+        leaderElectionService.isLeader(leaderSessionId).join();
 
         // revoke leadership
         leaderElectionService.notLeader();
@@ -321,7 +321,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // grant leadership
-        leaderElectionService.isConfirmedLeader(UUID.randomUUID());
+        leaderElectionService.isLeader(UUID.randomUUID()).join();
 
         // revoke leadership
         leaderElectionService.notLeader();
@@ -340,7 +340,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // grant leadership
-        leaderElectionService.isConfirmedLeader(leaderSessionId);
+        leaderElectionService.isLeader(leaderSessionId).join();
 
         // terminate RM
         rmTerminationFuture.complete(null);
@@ -362,7 +362,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // grant leadership
-        leaderElectionService.isConfirmedLeader(leaderSessionId);
+        leaderElectionService.isLeader(leaderSessionId).join();
 
         // revoke leadership
         leaderElectionService.notLeader();
@@ -384,7 +384,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // grant leadership
-        leaderElectionService.isConfirmedLeader(UUID.randomUUID());
+        leaderElectionService.isLeader(UUID.randomUUID()).join();
 
         assertFalse(leaderElectionService.isStopped());
 
@@ -405,7 +405,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         createAndStartResourceManager();
 
         // grant leadership
-        leaderElectionService.isConfirmedLeader(UUID.randomUUID());
+        leaderElectionService.isLeader(UUID.randomUUID()).join();
 
         // close service
         final CompletableFuture<Void> closeServiceFuture = resourceManagerService.closeAsync();
@@ -491,7 +491,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
         Assert.assertEquals(0, registeredMetrics.size());
         // grant leadership
-        leaderElectionService.isConfirmedLeader(UUID.randomUUID());
+        leaderElectionService.isLeader(UUID.randomUUID()).join();
 
         Set<String> expectedMetrics =
                 Sets.set(
@@ -509,7 +509,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         intersection.retainAll(expectedMetrics);
         Assert.assertTrue("Expected RM to unregister leader metrics", intersection.isEmpty());
 
-        leaderElectionService.isConfirmedLeader(UUID.randomUUID());
+        leaderElectionService.isLeader(UUID.randomUUID()).join();
 
         Assert.assertTrue(
                 "Expected RM to re-register leader metrics",

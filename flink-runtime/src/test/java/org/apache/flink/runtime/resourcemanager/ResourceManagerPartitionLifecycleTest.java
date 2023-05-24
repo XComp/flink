@@ -210,7 +210,7 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
         resourceManagerService.start();
 
         // first make the ResourceManager the leader
-        resourceManagerService.isConfirmedLeader(UUID.randomUUID());
+        resourceManagerService.isLeader(UUID.randomUUID()).join();
 
         return resourceManagerService
                 .getResourceManagerGateway()

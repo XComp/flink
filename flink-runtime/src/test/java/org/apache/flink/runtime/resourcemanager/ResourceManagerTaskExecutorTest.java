@@ -138,7 +138,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                         .build();
 
         rmService.start();
-        rmService.isConfirmedLeader(UUID.randomUUID());
+        rmService.isLeader(UUID.randomUUID()).join();
 
         rmGateway =
                 rmService

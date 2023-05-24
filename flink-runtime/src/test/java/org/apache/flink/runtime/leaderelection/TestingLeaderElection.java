@@ -101,7 +101,10 @@ public class TestingLeaderElection implements LeaderElection {
     /**
      * Acquires the leadership with the given {@code leaderSessionID}.
      *
-     * @return the contender's {@link LeaderInformation} after the leadership was confirmed.
+     * @return the contender's {@link LeaderInformation} after the leadership was confirmed. Waiting
+     *     for the {@code CompletableFuture} to complete will leave the test code in a state where
+     *     the {@link LeaderContender} confirmed the leadership. This simulates the information
+     *     being written to the HA backend.
      */
     public synchronized CompletableFuture<LeaderInformation> isLeader(UUID leaderSessionID) {
         if (confirmationFuture != null) {
@@ -116,11 +119,6 @@ public class TestingLeaderElection implements LeaderElection {
         }
 
         return confirmationFuture;
-    }
-
-    /** Blocking {@code isLeader(UUID)} call that waits until the leadership is confirmed. */
-    public LeaderInformation isConfirmedLeader(UUID leaderSessionID) {
-        return isLeader(leaderSessionID).join();
     }
 
     /**
