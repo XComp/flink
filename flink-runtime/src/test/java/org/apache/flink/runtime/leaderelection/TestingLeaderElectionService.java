@@ -36,11 +36,6 @@ public class TestingLeaderElectionService implements LeaderElectionService {
         return startedLeaderElection;
     }
 
-    @Override
-    public synchronized void remove(LeaderContender contender) {
-        startedLeaderElection.close();
-    }
-
     public synchronized CompletableFuture<LeaderInformation> isLeader(UUID leaderSessionID) {
         return startedLeaderElection.isLeader(leaderSessionID);
     }

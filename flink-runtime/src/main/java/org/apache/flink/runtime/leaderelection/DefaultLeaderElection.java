@@ -58,7 +58,9 @@ class DefaultLeaderElection implements LeaderElection {
 
     @Override
     public void close() throws Exception {
-        parentService.remove(leaderContender);
-        leaderContender = null;
+        if (leaderContender != null) {
+            parentService.remove(leaderContender);
+            leaderContender = null;
+        }
     }
 }
