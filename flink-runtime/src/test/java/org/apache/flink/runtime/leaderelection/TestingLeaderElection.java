@@ -85,6 +85,14 @@ public class TestingLeaderElection implements LeaderElection {
             this.contender.revokeLeadership();
         }
 
+        if (confirmationFuture != null) {
+            // the confirmationFuture is kind of bound to the LeaderContender which response to the
+            // grantLeadership call - resetting the LeaderElection should also inform the contender
+            // of such a state change
+            confirmationFuture.cancel(true);
+            confirmationFuture = null;
+        }
+
         this.contender = null;
         startFuture.cancel(false);
         startFuture = new CompletableFuture<>();
