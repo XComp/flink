@@ -202,9 +202,9 @@ class PatternTest {
     && threeWayEquals(pattern.getName, pattern.wrappedPattern.getName, jPattern.getName)
     // check equal time windows
     && threeWayEquals(
-      pattern.getWindowTime.orNull,
-      pattern.wrappedPattern.getWindowTime,
-      jPattern.getWindowTime)
+      pattern.getWindowSize.orNull,
+      pattern.wrappedPattern.getWindowSize,
+      jPattern.getWindowSize)
     // check congruent class names / types
     && threeWayEquals(
       pattern.getClass.getSimpleName,
