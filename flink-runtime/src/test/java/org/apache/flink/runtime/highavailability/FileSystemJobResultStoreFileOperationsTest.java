@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +39,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.highavailability.JobResultStoreContractTest.DUMMY_JOB_RESULT_ENTRY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,11 +57,15 @@ public class FileSystemJobResultStoreFileOperationsTest {
 
     private Path basePath;
 
+    final ManuallyTriggeredScheduledExecutor manuallyTriggeredExecutor =
+            new ManuallyTriggeredScheduledExecutor();
+
     @BeforeEach
     public void setupTest() throws IOException {
         basePath = new Path(temporaryFolder.toURI());
         fileSystemJobResultStore =
-                new FileSystemJobResultStore(basePath.getFileSystem(), basePath, false);
+                new FileSystemJobResultStore(
+                        basePath.getFileSystem(), basePath, false, manuallyTriggeredExecutor);
     }
 
     @Test
@@ -116,46 +123,74 @@ public class FileSystemJobResultStoreFileOperationsTest {
         assertThat(emptyBaseDirectory).doesNotExist();
 
         fileSystemJobResultStore =
-                new FileSystemJobResultStore(basePath.getFileSystem(), basePath, false);
+                new FileSystemJobResultStore(
+                        basePath.getFileSystem(), basePath, false, manuallyTriggeredExecutor);
         // Result store operations are creating the base directory on-the-fly
         assertThat(emptyBaseDirectory).doesNotExist();
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
         assertThat(emptyBaseDirectory).exists().isDirectory();
     }
 
     @Test
     public void testStoreDirtyJobResultCreatesFile() throws Exception {
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
         assertThat(getCleanResultIdsFromFileSystem()).isEmpty();
         assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
     }
 
     @Test
     public void testStoreCleanJobResultCreatesFile() throws Exception {
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
+        CompletableFuture<Void> markCleanAsync =
+                fileSystemJobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        manuallyTriggeredExecutor.triggerAll();
+        markCleanAsync.get();
         assertThat(getCleanResultIdsFromFileSystem())
                 .containsExactlyInAnyOrder(DUMMY_JOB_RESULT_ENTRY.getJobId());
     }
 
     @Test
     public void testStoreCleanJobResultDeletesDirtyFile() throws Exception {
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
         assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
-        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        CompletableFuture<Void> markResultAsCleanAsync =
+                fileSystemJobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        manuallyTriggeredExecutor.triggerAll();
+        markResultAsCleanAsync.get();
         assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
     }
 
     @Test
-    public void testCleanDirtyJobResultTwiceIsIdempotent() throws IOException {
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
-
+    public void testCleanDirtyJobResultTwiceIsIdempotent()
+            throws IOException, ExecutionException, InterruptedException {
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
+        CompletableFuture<Void> cleanResultAsync =
+                fileSystemJobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        manuallyTriggeredExecutor.triggerAll();
+        cleanResultAsync.get();
         final byte[] cleanFileData =
                 FileUtils.readAllBytes(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY).toPath());
 
-        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        CompletableFuture<Void> markResultAsCleanAsync =
+                fileSystemJobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        manuallyTriggeredExecutor.triggerAll();
+        markResultAsCleanAsync.get();
         assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY))
                 .as(
                         "Marking the same job %s as clean should be idempotent.",
@@ -168,21 +203,33 @@ public class FileSystemJobResultStoreFileOperationsTest {
      * the dirty files for a job entry are deleted when the result is marked as clean.
      */
     @Test
-    public void testDeleteOnCommit() throws IOException {
+    public void testDeleteOnCommit() throws IOException, ExecutionException, InterruptedException {
         Path path = new Path(temporaryFolder.toURI());
-        fileSystemJobResultStore = new FileSystemJobResultStore(path.getFileSystem(), path, true);
+        fileSystemJobResultStore =
+                new FileSystemJobResultStore(
+                        path.getFileSystem(), path, true, manuallyTriggeredExecutor);
 
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
         assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
-        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        CompletableFuture<Void> markResultAsCleanAsync =
+                fileSystemJobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        manuallyTriggeredExecutor.triggerAll();
+        markResultAsCleanAsync.get();
         assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
         assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
     }
 
     @Test
-    public void testVersionSerialization() throws IOException {
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+    public void testVersionSerialization()
+            throws IOException, ExecutionException, InterruptedException {
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
         final File dirtyFile = expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY);
         final FileSystemJobResultStore.JsonJobResultEntry deserializedEntry =
                 MAPPER.readValue(dirtyFile, FileSystemJobResultStore.JsonJobResultEntry.class);
@@ -191,8 +238,12 @@ public class FileSystemJobResultStoreFileOperationsTest {
     }
 
     @Test
-    public void testJobResultSerializationDeserialization() throws IOException {
-        fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+    public void testJobResultSerializationDeserialization()
+            throws IOException, ExecutionException, InterruptedException {
+        CompletableFuture<Void> dirtyResultAsync =
+                fileSystemJobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY);
+        manuallyTriggeredExecutor.triggerAll();
+        dirtyResultAsync.get();
         final File dirtyFile = expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY);
         final FileSystemJobResultStore.JsonJobResultEntry deserializedEntry =
                 MAPPER.readValue(dirtyFile, FileSystemJobResultStore.JsonJobResultEntry.class);
