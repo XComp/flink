@@ -117,17 +117,16 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
 
     @Override
     public Set<JobResult> getDirtyResults() throws IOException {
-        return getDirtyResultsInternal();
+        return withReadLock(this::getDirtyResultsInternal);
     }
 
     @GuardedBy("readWriteLock")
     protected abstract Set<JobResult> getDirtyResultsInternal() throws IOException;
 
     private CompletableFuture<Void> withWriteLockAsync(ThrowingRunnable<IOException> runnable) {
-        return FutureUtils.supplyAsync(
+        return FutureUtils.runAsync(
                 () -> {
                     withWriteLock(runnable);
-                    return null;
                 },
                 ioExecutor);
     }

@@ -60,9 +60,9 @@ public interface JobResultStore {
      * {@code JobID} belongs to a job that was already marked as clean.
      *
      * @param jobId Ident of the job we wish to mark as clean.
-     * @return a successfully completed future if the result is marked successfully, The future can
-     *     also completed with {@link NoSuchElementException}. i.e. there is no corresponding {@code
-     *     dirty} job present in the store for the given {@code JobID}.
+     * @return a successfully completed future if the result is marked successfully. The future can
+     *     complete exceptionally with a {@link NoSuchElementException}. i.e. there is no
+     *     corresponding {@code dirty} job present in the store for the given {@code JobID}.
      */
     CompletableFuture<Void> markResultAsCleanAsync(JobID jobId);
 

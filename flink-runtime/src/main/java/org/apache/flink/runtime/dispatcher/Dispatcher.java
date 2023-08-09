@@ -563,19 +563,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     /**
-     * Checks whether the given job has already been submitted, executed, or awaiting termination.
-     *
-     * @param jobId identifying the submitted job
-     * @return true if the job has already been submitted (is running) or has been executed
-     * @throws Exception if the job scheduling status cannot be retrieved
-     */
-    private boolean isDuplicateJob(JobID jobId) throws Exception {
-        return isInGloballyTerminalState(jobId).get()
-                || jobManagerRunnerRegistry.isRegistered(jobId)
-                || submittedAndWaitingTerminationJobIDs.contains(jobId);
-    }
-
-    /**
      * Checks whether the given job has already been executed.
      *
      * @param jobId identifying the submitted job

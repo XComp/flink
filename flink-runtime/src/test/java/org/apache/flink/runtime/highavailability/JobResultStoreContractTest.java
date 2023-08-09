@@ -68,7 +68,8 @@ public interface JobResultStoreContractTest {
         jobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId()).join();
         assertThatThrownBy(
                         () -> jobResultStore.createDirtyResultAsync(DUMMY_JOB_RESULT_ENTRY).join())
-                .isInstanceOf(CompletionException.class);
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IllegalStateException.class);
     }
 
     @Test
