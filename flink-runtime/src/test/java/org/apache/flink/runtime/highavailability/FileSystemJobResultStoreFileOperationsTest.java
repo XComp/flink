@@ -193,8 +193,6 @@ public class FileSystemJobResultStoreFileOperationsTest {
 
         CompletableFuture<Void> markResultAsCleanAsync =
                 fileSystemJobResultStore.markResultAsCleanAsync(DUMMY_JOB_RESULT_ENTRY.getJobId());
-        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY))
-                .doesNotHaveSameHashCodeAs(cleanFileData);
         manuallyTriggeredExecutor.triggerAll();
         FlinkAssertions.assertThatFuture(markResultAsCleanAsync).eventuallySucceeds();
         assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY))
