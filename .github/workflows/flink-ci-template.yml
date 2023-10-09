@@ -54,7 +54,7 @@ jobs:
     name: "Basic QA"
     runs-on: ubuntu-latest
     container:
-      image: chesnay/flink-ci:java_8_11_xenial_m2
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
       options: --init
 
     steps:
@@ -80,7 +80,7 @@ jobs:
     name: "Compile"
     runs-on: ubuntu-latest
     container:
-      image: chesnay/flink-ci:java_8_11_xenial_m2
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
       options: --init
     timeout-minutes: 240
     outputs:
@@ -130,7 +130,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-latest
     container:
-      image: chesnay/flink-ci:java_8_11_xenial_m2
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
       options: --init
 
     steps:
@@ -172,7 +172,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-latest
     container:
-      image: chesnay/flink-ci:java_8_11_xenial_m2
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
       options: --init
     strategy:
       fail-fast: false
@@ -279,7 +279,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-latest
     container:
-      image: chesnay/flink-ci:java_8_11_xenial_m2
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
       options: --init
     outputs:
       skip-e2e: ${{ steps.docs-only-pr-check.skip-e2e }}
@@ -309,7 +309,7 @@ jobs:
     needs: [compile, e2e-prereq-check]
     runs-on: ubuntu-latest
     container:
-      image: chesnay/flink-ci:java_8_11_xenial_m2
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
       options: --init
     if: ${{ needs.e2e-prereq-check.outputs.skip-e2e != 'true' }}
     timeout-minutes: 310
