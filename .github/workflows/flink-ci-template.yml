@@ -165,7 +165,7 @@ jobs:
       - name: "Test"
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
+          ${{ inputs.environment }} ./tools/ci/compile_ci.sh || exit $?
 
   test:
     name: "Test (module: ${{ matrix.module }})"
