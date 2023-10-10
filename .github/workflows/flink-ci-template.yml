@@ -160,7 +160,7 @@ jobs:
       - name: "Unpack build artifact"
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }} -t .
+          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Test"
         working-directory: ${{ env.CHECKOUT_DIR }}
