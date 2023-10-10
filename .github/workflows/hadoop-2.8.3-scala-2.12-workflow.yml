@@ -41,6 +41,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: "Mark GHA checkout as a safe directory (workaround for https://github.com/actions/checkout/issues/1169)"
+        run: git config --system --add safe.directory $GITHUB_WORKSPACE
+        shell: bash
+
       - name: "Check if PR contains docs change"
         run: |
           source ./tools/azure-pipelines/build_properties.sh
