@@ -116,7 +116,9 @@ jobs:
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
-        run: ./tools/azure-pipelines/create_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
+        run: |
+          ./tools/azure-pipelines/create_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
+          tar -tf ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
 
       - name: "Upload artifacts to make them available in downstream jobs"
         uses: actions/upload-artifact@v2
@@ -227,6 +229,7 @@ jobs:
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
           ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }} -t .
+          find . -name .scalafmt.conf
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
