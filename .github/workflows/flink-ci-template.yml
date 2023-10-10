@@ -106,8 +106,10 @@ jobs:
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
+          find . -name .scalafmt.conf
           mkdir -p ${{ env.CHECKOUT_DIR }}
           mv ./* ${{ env.CHECKOUT_DIR }}/
+          find ${{ env.CHECKOUT_DIR }} -name .scalafmt.conf
 
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
