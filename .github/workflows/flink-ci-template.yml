@@ -106,10 +106,10 @@ jobs:
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
-          find . -name .scalafmt.conf
           mkdir -p ${{ env.CHECKOUT_DIR }}
-          mv ./* ${{ env.CHECKOUT_DIR }}/
-          find ${{ env.CHECKOUT_DIR }} -name .scalafmt.conf
+          # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
+          # Using find is a workaround to achieve the same.
+          find . -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
 
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -231,7 +231,6 @@ jobs:
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
           ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }} -t .
-          find . -name .scalafmt.conf
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
