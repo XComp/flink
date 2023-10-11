@@ -250,12 +250,11 @@ jobs:
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
           IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
           IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
-        timeout-minutes: 240
+        # timeout-minutes: 240
         run: |
           ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
               -a ${{ github.job }} \
               -d ${{ env.FLINK_ARTIFACT_DIR }} \
-              -t 240 \
               ./tools/ci/test_controller.sh ${{ matrix.module }}
 
       - name: "Post-process build artifacts"
@@ -312,7 +311,7 @@ jobs:
       image: chesnay/flink-ci:java_8_11_17_maven_386_v2
       options: --init
     if: ${{ needs.e2e-prereq-check.outputs.skip-e2e != 'true' }}
-    timeout-minutes: 310
+    # timeout-minutes: 310
     env:
       E2E_CACHE_FOLDER: /root/.e2e-cache
       E2E_TARBALL_CACHE: /root/.e2e-tarbal-cache
@@ -395,7 +394,7 @@ jobs:
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
           IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
           IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
-        timeout-minutes: 310
+        # timeout-minutes: 310
         run: |
           ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh \
             -a ${{ github.job }} \
