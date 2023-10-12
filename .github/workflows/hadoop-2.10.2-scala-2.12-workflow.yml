@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Hadoop 2.8.3/Java 8/Scala 2.12"
+name: "Hadoop 2.10.2/Java 8/Scala 2.12"
 
 on: [push, workflow_dispatch]
 
@@ -23,7 +23,7 @@ jobs:
   ci:
     uses: ./.github/workflows/flink-ci-template.yml
     with:
-      environment: 'PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"'
+      environment: 'PROFILE="-Dhadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"'
       jdk-version: 11
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
