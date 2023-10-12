@@ -114,7 +114,7 @@ jobs:
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -T2 -Dfast" || exit $?
+          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dfast" || exit $?
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
