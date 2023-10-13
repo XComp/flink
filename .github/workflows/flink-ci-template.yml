@@ -187,10 +187,10 @@ jobs:
             stringified-module-name: python
           - module: table
             stringified-module-name: table
-          - module: connectors
-            stringified-module-name: connectors
-          - module: kafka/gelly
-            stringified-module-name: kafka-gelly
+          - module: connect_1
+            stringified-module-name: connect_1
+          - module: connect_2
+            stringified-module-name: connect_2
           - module: tests
             stringified-module-name: tests
           - module: misc
