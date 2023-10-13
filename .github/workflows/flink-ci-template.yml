@@ -103,6 +103,13 @@ jobs:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
 
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
@@ -147,6 +154,13 @@ jobs:
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
@@ -209,6 +223,13 @@ jobs:
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
@@ -334,6 +355,13 @@ jobs:
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
