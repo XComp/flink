@@ -125,8 +125,7 @@ jobs:
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
           ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -pl flink-core -am -Dflink.markBundledAsOptional=false -Dfast" || exit $?
-          echo "All-in"
-          find / -name .m2
+          find ${{ env.MAVEN_REPO_FOLDER }}
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
