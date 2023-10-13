@@ -122,10 +122,8 @@ jobs:
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
           ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -pl flink-core -am -Dflink.markBundledAsOptional=false -Dfast" || exit $?
-          echo "Home Directory ~:"
-          find ~
-          echo "Home Directory /home/runner:"
-          find /home/runner
+          echo "All-in"
+          find / -name .m2
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
