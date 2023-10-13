@@ -42,7 +42,7 @@ permissions: read-all
 
 env:
   MAVEN_REPO_FOLDER: ${{ github.workspace }}/.m2/repository
-  MAVEN_ARGS: '-Dmaven.repo.local=${MAVEN_REPO_FOLDER}'
+  MAVEN_ARGS: -Dmaven.repo.local=${MAVEN_REPO_FOLDER}
   FLINK_ARTIFACT_DIR: /root/
   FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
   DOCKER_IMAGES_CACHE_FOLDER: /root/.docker-cache
