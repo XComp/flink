@@ -115,6 +115,7 @@ jobs:
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
+          echo "${{ env.MAVEN_ARGS }}"
           mkdir -p ${{ env.CHECKOUT_DIR }}
           # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
           # Using find is a workaround to achieve the same.
@@ -123,7 +124,9 @@ jobs:
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dflink.markBundledAsOptional=false -Dfast" || exit $?
+          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -pl flink-core -am -Dflink.markBundledAsOptional=false -Dfast" || exit $?
+          echo "All-in"
+          find / -name .m2
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
