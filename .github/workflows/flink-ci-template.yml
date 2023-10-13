@@ -115,6 +115,7 @@ jobs:
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
+          echo "${{ env.MAVEN_ARGS }}"
           mkdir -p ${{ env.CHECKOUT_DIR }}
           # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
           # Using find is a workaround to achieve the same.
