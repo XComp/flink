@@ -41,6 +41,8 @@ on:
 permissions: read-all
 
 env:
+  MAVEN_REPO_FOLDER: ${{ github.workspace }}/.m2/repository
+  MAVEN_ARGS: -Dmaven.repo.local=${{ env.MAVEN_REPO_FOLDER }}
   FLINK_ARTIFACT_DIR: /root/
   FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
   DOCKER_IMAGES_CACHE_FOLDER: /root/.docker-cache
@@ -78,7 +80,6 @@ jobs:
 
   compile:
     name: "Compile"
-    id: compile
     runs-on: ubuntu-latest
     container:
       image: chesnay/flink-ci:java_8_11_17_maven_386_v2
@@ -86,8 +87,6 @@ jobs:
     timeout-minutes: 240
     outputs:
       stringified-workflow-name: ${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}
-      maven_repo_folder: ${{ steps.compile.outputs.maven_repo_folder }}
-      maven_args: ${{ steps.compile.outputs.maven_args }}
     steps:
       - name: "Stringify workflow name"
         id: workflow-prep-step
@@ -100,14 +99,6 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
           echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
 
-      - name: "Set local Maven repository"
-        run: |
-          export MAVEN_REPO_FOLDER="${{ github.workspace }}/.m2/repository"
-          export MAVEN_ARGS="-Dmaven.repo.local=${{ env.MAVEN_REPO_FOLDER }}"
-          
-          echo "maven_repo_folder=${MAVEN_REPO_FOLDER}" >> $GITHUB_OUTPUT
-          echo "maven_args=${MAVEN_ARGS}" >> $GITHUB_OUTPUT
-
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
@@ -117,16 +108,14 @@ jobs:
       - name: "Setup Maven package cache"
         uses: actions/cache@v3
         with:
-          path: ${{ steps.compile.outputs.maven_repo_folder }}
+          path: ${{ env.MAVEN_REPO_FOLDER }}
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
-
-      - name: "Show environment variables"
-        run: env
 
       - name: "Copy"
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
+          echo "${{ env.MAVEN_ARGS }}"
           mkdir -p ${{ env.CHECKOUT_DIR }}
           # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
           # Using find is a workaround to achieve the same.
