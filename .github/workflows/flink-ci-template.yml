@@ -78,6 +78,7 @@ jobs:
 
   compile:
     name: "Compile"
+    id: compile
     runs-on: ubuntu-latest
     container:
       image: chesnay/flink-ci:java_8_11_17_maven_386_v2
@@ -85,8 +86,8 @@ jobs:
     timeout-minutes: 240
     outputs:
       stringified-workflow-name: ${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}
-      maven_repo_folder: ${{ steps.set-local-maven-repository.outputs.maven_repo_folder }}
-      maven_args: ${{ steps.set-local-maven-repository.outputs.maven_args }}
+      maven_repo_folder: ${{ steps.compile.outputs.maven_repo_folder }}
+      maven_args: ${{ steps.compile.outputs.maven_args }}
     steps:
       - name: "Stringify workflow name"
         id: workflow-prep-step
@@ -100,7 +101,6 @@ jobs:
           echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
 
       - name: "Set local Maven repository"
-        id: set-local-maven-repository
         run: |
           export MAVEN_REPO_FOLDER="${{ github.workspace }}/.m2/repository"
           export MAVEN_ARGS="-Dmaven.repo.local=${{ env.MAVEN_REPO_FOLDER }}"
@@ -117,7 +117,7 @@ jobs:
       - name: "Setup Maven package cache"
         uses: actions/cache@v3
         with:
-          path: ${{ steps.set-local-maven-repository.outputs.maven_repo_folder }}
+          path: ${{ steps.compile.outputs.maven_repo_folder }}
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
 
