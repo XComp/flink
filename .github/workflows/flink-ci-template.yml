@@ -158,7 +158,9 @@ jobs:
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
           mkdir -p ${{ env.CHECKOUT_DIR }}
-          mv ./* ${{ env.CHECKOUT_DIR }}/
+          # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
+          # Using find is a workaround to achieve the same.
+          find . -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
 
       - name: "Test"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -214,7 +216,9 @@ jobs:
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
           mkdir -p ${{ env.CHECKOUT_DIR }}
-          mv ./* ${{ env.CHECKOUT_DIR }}/
+          # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
+          # Using find is a workaround to achieve the same.
+          find . -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
 
       - name: "Set coredump pattern"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -336,7 +340,9 @@ jobs:
         working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
           mkdir -p ${{ env.CHECKOUT_DIR }}
-          mv ./* ${{ env.CHECKOUT_DIR }}/
+          # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
+          # Using find is a workaround to achieve the same.
+          find . -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
 
       # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
       # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
