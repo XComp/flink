@@ -68,7 +68,7 @@ jobs:
         echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
 
     - name: "Flink Checkout"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         persist-credentials: false
     - name: "Codestyle"
@@ -102,7 +102,7 @@ jobs:
           echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
 
       - name: "Flink Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
@@ -142,7 +142,7 @@ jobs:
           echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
 
       - name: "Flink Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
@@ -198,7 +198,7 @@ jobs:
           echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
 
       - name: "Flink Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
@@ -277,7 +277,7 @@ jobs:
       skip-e2e: ${{ steps.docs-only-pr-check.skip-e2e }}
     steps:
       - name: "Flink Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
@@ -320,7 +320,7 @@ jobs:
           echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
 
       - name: "Flink Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
