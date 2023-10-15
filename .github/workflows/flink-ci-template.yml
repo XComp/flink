@@ -255,7 +255,7 @@ jobs:
         run: find ${{ steps.test-run.outputs.debug-files-output-dir }} -type f -exec rename 's/[:<>|*?]/-/' {} \;
 
       - name: "Upload build artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ failure() && steps.test-run.outputs.debug-files-output-dir }} != ''
         with:
           name: logs-test-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}-${{ matrix.stringified-module-name }}-${{ steps.test-run.outputs.debug-files-name }}
@@ -393,7 +393,7 @@ jobs:
             flink-end-to-end-tests/run-nightly-tests.sh ${{ matrix.group }}
 
       - name: "Upload Logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ failure() && steps.test-run.outputs.debug-files-output-dir }} != ''
         with:
           name: logs-e2e-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}-${{ matrix.group }}-${{ steps.test-run.outputs.debug-files-name }}
