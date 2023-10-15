@@ -127,18 +127,6 @@ jobs:
         run: |
           ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dflink.markBundledAsOptional=false -Dfast" || exit $?
 
-      - name: "Collect build artifacts"
-        working-directory: ${{ env.CHECKOUT_DIR }}
-        run: |
-          ./tools/azure-pipelines/create_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
-
-      - name: "Upload artifacts to make them available in downstream jobs"
-        uses: actions/upload-artifact@v2
-        with:
-          name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }}
-          if-no-files-found: error
-
   packaging:
     name: "Test packaging/licensing"
     needs: compile
@@ -171,17 +159,6 @@ jobs:
         run: |
           mkdir -p ${{ env.CHECKOUT_DIR }}
           mv ./* ${{ env.CHECKOUT_DIR }}/
-
-      - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v2
-        with:
-          name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
-
-      - name: "Unpack build artifact"
-        working-directory: ${{ env.CHECKOUT_DIR }}
-        run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Test"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -242,17 +219,6 @@ jobs:
       - name: "Set coredump pattern"
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: sudo sysctl -w kernel.core_pattern=core.%p
-
-      - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v2
-        with:
-          name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
-
-      - name: "Unpack build artifact"
-        working-directory: ${{ env.CHECKOUT_DIR }}
-        run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
@@ -371,16 +337,6 @@ jobs:
         run: |
           mkdir -p ${{ env.CHECKOUT_DIR }}
           mv ./* ${{ env.CHECKOUT_DIR }}/
-
-      - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v2
-        with:
-          name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
-
-      - name: "Unpack build artifact"
-        working-directory: ${{ env.CHECKOUT_DIR }}
-        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ env.CHECKOUT_DIR }}
 
       # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
       # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
