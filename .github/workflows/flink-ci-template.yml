@@ -41,6 +41,8 @@ on:
 permissions: read-all
 
 env:
+  # The working directory within the Docker container is set to /__w which is mapped to the runner
+  # directory /home/runner/work.
   MAVEN_REPO_FOLDER: /__w/flink/flink/.m2/repository
   MAVEN_ARGS: -Dmaven.repo.local=/__w/flink/flink/.m2/repository
   FLINK_ARTIFACT_DIR: /root/
