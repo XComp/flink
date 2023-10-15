@@ -222,7 +222,7 @@ jobs:
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
           key: ${{ matrix.module }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
@@ -347,13 +347,13 @@ jobs:
           mkdir -p ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
 
       - name: "Load E2E files from Cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.E2E_CACHE_FOLDER }}
           key: e2e-cache-${{ matrix.group }}-${{ hashFiles('**/flink-end-to-end-tests/**/*.java', '!**/avro/**') }}
 
       - name: "Load E2E artifacts from Cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.E2E_TARBALL_CACHE }}
           key: e2e-artifact-cache-${{ matrix.group }}-${{ hashFiles('**/flink-end-to-end-tests/**/*.sh') }}
@@ -361,7 +361,7 @@ jobs:
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
           key: e2e-${{ matrix.group }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
