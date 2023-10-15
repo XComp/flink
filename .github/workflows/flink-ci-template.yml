@@ -213,8 +213,6 @@ jobs:
             stringified-module-name: tests
           - module: misc
             stringified-module-name: misc
-          - module: finegrained_resource_management
-            stringified-module-name: finegrained_resource_management
 
     steps:
       - name: "Set JDK version"
