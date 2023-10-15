@@ -283,6 +283,7 @@ jobs:
           ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
               -a ${{ github.job }} \
               -d ${{ env.FLINK_ARTIFACT_DIR }} \
+              -t 480 \
               ./tools/ci/test_controller.sh ${{ matrix.module }}
 
       - name: "Post-process build artifacts"
