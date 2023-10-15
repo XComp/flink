@@ -94,7 +94,7 @@ jobs:
         id: workflow-prep-step
         run: |
           stringified_workflow_name=$(echo "${{ github.workflow }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
-          echo "::set-output name=stringified-workflow-name::${stringified_workflow_name}"
+          echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
 
       - name: "Set JDK version"
         run: |
@@ -294,7 +294,7 @@ jobs:
           source ./tools/azure-pipelines/build_properties.sh
           if is_docs_only_pullrequest; then
             echo "This is a documentation-only change. Skipping e2e execution."
-            echo "::set-output name=skip-e2e::true"
+            echo "skip-e2e=true" >> $GITHUB_OUTPUT
           else
             echo "This is a regular CI build. Continuing ..."
           fi
