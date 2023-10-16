@@ -283,7 +283,7 @@ jobs:
         # timeout-minutes: 240
         run: |
           for i in $(seq 1 10000); do
-            mvn -pl flink-core surefire:test -Dtest=org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrapTest#testHandlersMustBeLoaded
+            mvn -pl flink-runtime-web surefire:test -Dtest=org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrapTest#testHandlersMustBeLoaded
           done
 
       - name: "Post-process build artifacts"
