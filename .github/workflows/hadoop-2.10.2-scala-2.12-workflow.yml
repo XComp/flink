@@ -37,7 +37,7 @@ jobs:
       image: chesnay/flink-ci:java_8_11_17_maven_386_v2
     steps:
       - name: "Checks out Flink"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
 
