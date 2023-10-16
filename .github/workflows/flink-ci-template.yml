@@ -282,11 +282,9 @@ jobs:
           IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
         # timeout-minutes: 240
         run: |
-          ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
-              -a ${{ github.job }} \
-              -d ${{ env.FLINK_ARTIFACT_DIR }} \
-              -t 480 \
-              ./tools/ci/test_controller.sh ${{ matrix.module }}
+          for i in $(seq 1 10000); do
+            mvn -pl flink-core surefire:test -Dtest=org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrapTest#testHandlersMustBeLoaded
+          done
 
       - name: "Post-process build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
