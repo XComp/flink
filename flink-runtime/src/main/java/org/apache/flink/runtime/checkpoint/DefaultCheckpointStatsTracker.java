@@ -73,6 +73,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
 
     private Optional<JobInitializationMetricsBuilder> jobInitializationMetricsBuilder =
             Optional.empty();
+    @Nullable private final CheckpointLifecycleListener checkpointLifecycleListener;
 
     /** Latest created snapshot. */
     private volatile CheckpointStatsSnapshot latestSnapshot;
@@ -95,9 +96,25 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
      */
     public DefaultCheckpointStatsTracker(
             int numRememberedCheckpoints, JobManagerJobMetricGroup metricGroup) {
+        this(numRememberedCheckpoints, metricGroup, null);
+    }
+
+    /**
+     * Creates a new checkpoint stats tracker.
+     *
+     * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
+     *     progress ones.
+     * @param metricGroup Metric group for exposed metrics.
+     * @param checkpointLifecycleListener Listener for monitoring checkpoint-related events.
+     */
+    public DefaultCheckpointStatsTracker(
+            int numRememberedCheckpoints,
+            JobManagerJobMetricGroup metricGroup,
+            @Nullable CheckpointLifecycleListener checkpointLifecycleListener) {
         checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
         this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
         this.metricGroup = metricGroup;
+        this.checkpointLifecycleListener = checkpointLifecycleListener;
 
         // Latest snapshot is empty
         latestSnapshot =
@@ -203,6 +220,10 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
 
             dirty = true;
             logCheckpointStatistics(completed);
+
+            if (checkpointLifecycleListener != null) {
+                checkpointLifecycleListener.onCompletedCheckpoint();
+            }
         } finally {
             statsReadWriteLock.unlock();
         }
@@ -217,6 +238,10 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
 
             dirty = true;
             logCheckpointStatistics(failed);
+
+            if (checkpointLifecycleListener != null) {
+                checkpointLifecycleListener.onFailedCheckpoint();
+            }
         } finally {
             statsReadWriteLock.unlock();
         }
@@ -256,6 +281,10 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
             counts.incrementFailedCheckpointsWithoutInProgress();
 
             dirty = true;
+
+            if (checkpointLifecycleListener != null) {
+                checkpointLifecycleListener.onFailedCheckpoint();
+            }
         } finally {
             statsReadWriteLock.unlock();
         }
