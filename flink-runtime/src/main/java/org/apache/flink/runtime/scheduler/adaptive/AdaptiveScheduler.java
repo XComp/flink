@@ -39,6 +39,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointLifecycleListener;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
@@ -428,7 +429,8 @@ public class AdaptiveScheduler
                         () ->
                                 new DefaultCheckpointStatsTracker(
                                         configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
-                                        jobManagerJobMetricGroup));
+                                        jobManagerJobMetricGroup,
+                                        createCheckpointStatsListener()));
 
         this.slotAllocator = slotAllocator;
 
@@ -1496,5 +1498,28 @@ public class AdaptiveScheduler
                         this::checkIdleSlotTimeout,
                         settings.getSlotIdleTimeout().toMillis(),
                         TimeUnit.MILLISECONDS);
+    }
+
+    private CheckpointLifecycleListener createCheckpointStatsListener() {
+        // wrapper implementation ensuring that the checkpoint-related events are handled in the
+        // scheduler's main thread
+        return new CheckpointLifecycleListener() {
+
+            @Override
+            public void onFailedCheckpoint() {
+                state.tryRun(
+                        CheckpointLifecycleListener.class,
+                        CheckpointLifecycleListener::onFailedCheckpoint,
+                        "onFailedCheckpointStats");
+            }
+
+            @Override
+            public void onCompletedCheckpoint() {
+                state.tryRun(
+                        CheckpointLifecycleListener.class,
+                        CheckpointLifecycleListener::onCompletedCheckpoint,
+                        "onCompletedCheckpointStats");
+            }
+        };
     }
 }

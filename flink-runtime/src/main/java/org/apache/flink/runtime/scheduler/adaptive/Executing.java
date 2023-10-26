@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.checkpoint.CheckpointLifecycleListener;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -56,7 +57,7 @@ import java.util.stream.Collectors;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
 class Executing extends StateWithExecutionGraph
-        implements ResourceListener, RescaleManager.Context {
+        implements ResourceListener, RescaleManager.Context, CheckpointLifecycleListener {
 
     private final Context context;
 
@@ -206,6 +207,12 @@ class Executing extends StateWithExecutionGraph
         rescaleManager.onChange();
         rescaleManager.onTrigger();
     }
+
+    @Override
+    public void onCompletedCheckpoint() {}
+
+    @Override
+    public void onFailedCheckpoint() {}
 
     CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
