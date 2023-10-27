@@ -282,8 +282,10 @@ jobs:
           IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
         # timeout-minutes: 240
         run: |
-          for i in $(seq 1 10000); do
+          EXIT_CODE=0
+          while [[ $EXIT_CODE == "0" ]]; do
             mvn -pl flink-runtime-web surefire:test -Dtest=org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrapTest#testHandlersMustBeLoaded
+            EXIT_CODE="$?"
           done
 
       - name: "Post-process build artifacts"
