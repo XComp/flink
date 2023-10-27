@@ -126,6 +126,7 @@ jobs:
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
           ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dflink.markBundledAsOptional=false -Dfast -pl flink-runtime-web -am" || exit $?
+        shell: bash
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
