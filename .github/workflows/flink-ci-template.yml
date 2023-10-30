@@ -283,7 +283,7 @@ jobs:
         # timeout-minutes: 240
         shell: bash
         run: |
-          mvn -pl flink-yarn-tests -am package -DskipTests -Dfast -Pskip-webui-build
+          mvn -pl flink-dist,flink-yarn-tests -am package -DskipTests -Dfast -Pskip-webui-build
           EXIT_CODE=0
           while [[ $EXIT_CODE == "0" ]]; do
             mvn -pl flink-yarn-tests surefire:test
