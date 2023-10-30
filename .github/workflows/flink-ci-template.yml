@@ -288,6 +288,7 @@ jobs:
             mvn -pl flink-runtime-web surefire:test -Dtest=org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrapTest#testHandlersMustBeLoaded
             EXIT_CODE="$?"
           done
+        shell: bash
 
       - name: "Post-process build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
