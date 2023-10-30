@@ -283,10 +283,10 @@ jobs:
         # timeout-minutes: 240
         shell: bash
         run: |
-          mvn -pl flink-dist,flink-yarn-tests -am package -DskipTests -Dfast -Pskip-webui-build
+          mvn -pl flink-dist,flink-yarn-tests -am package -DskipTests -Dfast -Pskip-webui-build -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -B
           EXIT_CODE=0
           while [[ $EXIT_CODE == "0" ]]; do
-            mvn -pl flink-yarn-tests surefire:test
+            mvn -pl flink-yarn-tests surefire:test -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -B
             EXIT_CODE="$?"
           done
 
