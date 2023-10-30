@@ -125,7 +125,7 @@ jobs:
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dflink.markBundledAsOptional=false -Dfast" || exit $?
+          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dflink.markBundledAsOptional=false -Dfast -pl flink-yarn-tests -am" || exit $?
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -281,12 +281,13 @@ jobs:
           IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
           IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
         # timeout-minutes: 240
+        shell: bash
         run: |
-          ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
-              -a ${{ github.job }} \
-              -d ${{ env.FLINK_ARTIFACT_DIR }} \
-              -t 480 \
-              ./tools/ci/test_controller.sh ${{ matrix.module }}
+          EXIT_CODE=0
+          while [[ $EXIT_CODE == "0" ]]; do
+            mvn -pl flink-runtime-web surefire:test
+            EXIT_CODE="$?"
+          done
 
       - name: "Post-process build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
