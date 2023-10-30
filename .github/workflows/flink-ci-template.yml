@@ -285,7 +285,7 @@ jobs:
         run: |
           EXIT_CODE=0
           while [[ $EXIT_CODE == "0" ]]; do
-            mvn -pl flink-runtime-web surefire:test
+            mvn -pl flink-yarn-tests surefire:test
             EXIT_CODE="$?"
           done
 
