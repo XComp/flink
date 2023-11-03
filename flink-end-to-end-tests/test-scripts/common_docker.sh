@@ -76,17 +76,14 @@ function build_image() {
 function start_file_server() {
     local file_server_port="$1"
 
-    local command
     if which python3 > /dev/null; then
-        echo "Starting file server using python3."
-        command="python3 -m http.server"
+        # sub-shell is required to not let the background command block (due to open output streams)
+        (python3 -m http.server "${file_server_port}" > /dev/null) & echo $!
     elif which python > /dev/null; then
-        echo "Starting file server using python2."
-        command="python -m SimpleHTTPServer"
+        # sub-shell is required to not let the background command block (due to open output streams)
+        (python -m SimpleHTTPServer "${file_server_port}" > /dev/null) & echo $!
     else
         echo "Could not find python(2) installation for starting fileserver."
         exit 1
     fi
-
-    eval "${command} ${file_server_port}" & echo $!
 }
