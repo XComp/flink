@@ -16,13 +16,8 @@
 
 # Utility for invoking Maven in CI
 function run_mvn {
-	MVN_CMD="mvn"
-	if [[ "$M2_HOME" != "" ]]; then
-		MVN_CMD="${M2_HOME}/bin/mvn"
-	fi
-
 	ARGS=$@
-	INVOCATION="$MVN_CMD $MVN_GLOBAL_OPTIONS $ARGS"
+	INVOCATION="$MAVEN_WRAPPER $MVN_GLOBAL_OPTIONS $ARGS"
 	if [[ "$MVN_RUN_VERBOSE" != "false" ]]; then
 		echo "Invoking mvn with '$INVOCATION'"
 	fi
@@ -82,11 +77,10 @@ function collect_coredumps {
 
 
 CI_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+# expectation for this script to be located in tools/ci
+MAVEN_WRAPPER="${CI_DIR}/../../mvnw"
 
-MAVEN_VERSION="3.2.5"
-MAVEN_CACHE_DIR=${HOME}/maven_cache
-MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
-
+export MAVEN_WRAPPER
 
 MAVEN_MIRROR_CONFIG_FILE=""
 NPM_PROXY_PROFILE_ACTIVATION=""
