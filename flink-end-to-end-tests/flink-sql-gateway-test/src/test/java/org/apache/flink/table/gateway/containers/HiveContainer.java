@@ -80,8 +80,7 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
                         .post(new FormBody.Builder().build())
                         .url(
                                 String.format(
-                                        "http://%s:%s",
-                                        getHost(), getMappedPort(NAME_NODE_WEB_PORT)))
+                                        "http://127.0.0.1:%s", getMappedPort(NAME_NODE_WEB_PORT)))
                         .build();
         OkHttpClient client = new OkHttpClient();
         try (Response response = client.newCall(request).execute()) {

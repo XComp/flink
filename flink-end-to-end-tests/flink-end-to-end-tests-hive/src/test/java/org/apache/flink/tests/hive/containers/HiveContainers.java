@@ -99,8 +99,8 @@ public class HiveContainers {
                             .post(new FormBody.Builder().build())
                             .url(
                                     String.format(
-                                            "http://%s:%s",
-                                            getHost(), getMappedPort(getNameNodeWebEndpointPort())))
+                                            "http://127.0.0.1:%s",
+                                            getMappedPort(getNameNodeWebEndpointPort())))
                             .build();
             OkHttpClient client = new OkHttpClient();
             try (Response response = client.newCall(request).execute()) {
