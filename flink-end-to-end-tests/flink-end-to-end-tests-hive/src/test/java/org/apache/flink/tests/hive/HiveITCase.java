@@ -35,7 +35,6 @@ import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -63,7 +62,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** IT case for Hive including reading & writing hive and Hive dialect. */
-@Ignore
 public class HiveITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveITCase.class);
