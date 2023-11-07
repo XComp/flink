@@ -14,9 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+CI_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
 # Utility for invoking Maven in CI
 function run_mvn {
-	MVN_CMD="./mvnw"
+  # assuming ./tools/ci/ as the location and the Maven wrapper being located in the root directory
+	MVN_CMD="${CI_DIR}/../../mvnw"
 	if [[ "$M2_HOME" != "" ]]; then
 		MVN_CMD="${M2_HOME}/bin/mvn"
 	fi
@@ -78,8 +81,6 @@ function collect_coredumps {
 	done
 }
 
-
-CI_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 MAVEN_VERSION="3.8.6"
 MAVEN_CACHE_DIR=${HOME}/maven_cache
