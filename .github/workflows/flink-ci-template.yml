@@ -264,10 +264,6 @@ jobs:
     env:
       E2E_CACHE_FOLDER: ${{ github.workspace }}/.e2e-cache
       E2E_TARBALL_CACHE: ${{ github.workspace }}/.e2e-tarbal-cache
-      MAVEN_REPO_FOLDER: ${{ github.workspace }}/.m2/repository
-      MAVEN_ARGS: -Dmaven.repo.local=${{ github.workspace }}/.m2/repository
-      FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
-      DOCKER_IMAGES_CACHE_FOLDER: ${{ github.workspace }}/.docker-cache
     strategy:
       fail-fast: false
       matrix:
