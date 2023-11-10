@@ -100,13 +100,13 @@ jobs:
 
       - name: "Collect build artifacts"
         run: |
-          ./tools/azure-pipelines/create_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }}
+          ./tools/azure-pipelines/create_build_artifact.sh -f ${{ runner.temp }}/${{ env.FLINK_ARTIFACT_FILENAME }}
 
       - name: "Upload artifacts to make them available in downstream jobs"
         uses: actions/upload-artifact@v3
         with:
           name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ github.workspace }}${{ env.FLINK_ARTIFACT_FILENAME }}
+          path: ${{ runner.temp }}/${{ env.FLINK_ARTIFACT_FILENAME }}
           if-no-files-found: error
 
   packaging:
@@ -134,7 +134,7 @@ jobs:
 
       - name: "Unpack build artifact"
         run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
+          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ runner.temp }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Test"
         run: |
@@ -186,7 +186,7 @@ jobs:
 
       - name: "Unpack build artifact"
         run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
+          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ runner.temp }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
@@ -291,7 +291,7 @@ jobs:
           path: ${{ github.workspace }}
 
       - name: "Unpack build artifact"
-        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ github.workspace }}
+        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ runner.temp }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ github.workspace }}
 
       # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
       # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
