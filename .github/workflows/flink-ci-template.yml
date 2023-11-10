@@ -130,7 +130,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ github.workspace }}
+          path: ${{ runner.temp }}
 
       - name: "Unpack build artifact"
         run: |
@@ -182,7 +182,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ github.workspace }}
+          path: ${{ runner.temp }}
 
       - name: "Unpack build artifact"
         run: |
@@ -288,7 +288,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ github.workspace }}
+          path: ${{ runner.temp }}
 
       - name: "Unpack build artifact"
         run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ runner.temp }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ github.workspace }}
