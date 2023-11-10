@@ -114,16 +114,11 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
 
-      - name: "Copy"
-        run: |
-          mkdir -p ${{ env.CHECKOUT_DIR }}
-          
-          # .scalafmt.conf is needed for the Scala format check
-          # .mvn is needed to make the Maven wrapper accessible in test runs
-          mv ${{ env.CONTAINER_WORKING_DIR }}/* \
-            ${{ env.CONTAINER_WORKING_DIR }}/.scalafmt.conf \
-            ${{ env.CONTAINER_WORKING_DIR }}/.mvn \
-            ${{ env.CHECKOUT_DIR }}
+      - name: "Moves relevant checkout content to ${{ env.CHECKOUT_DIR }}"
+        uses: "./.github/actions/move_checkout"
+        with:
+          source-directory: ${{ env.CONTAINER_WORKING_DIR }}
+          target-directory: ${{ env.CHECKOUT_DIR }}
 
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -168,16 +163,11 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
 
-      - name: "Copy"
-        run: |
-          mkdir -p ${{ env.CHECKOUT_DIR }}
-          
-          # .scalafmt.conf is needed for the Scala format check
-          # .mvn is needed to make the Maven wrapper accessible in test runs
-          mv ${{ env.CONTAINER_WORKING_DIR }}/* \
-            ${{ env.CONTAINER_WORKING_DIR }}/.scalafmt.conf \
-            ${{ env.CONTAINER_WORKING_DIR }}/.mvn \
-            ${{ env.CHECKOUT_DIR }}
+      - name: "Moves relevant checkout content to ${{ env.CHECKOUT_DIR }}"
+        uses: "./.github/actions/move_checkout"
+        with:
+          source-directory: ${{ env.CONTAINER_WORKING_DIR }}
+          target-directory: ${{ env.CHECKOUT_DIR }}
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v2
@@ -239,16 +229,11 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
 
-      - name: "Copy"
-        run: |
-          mkdir -p ${{ env.CHECKOUT_DIR }}
-          
-          # .scalafmt.conf is needed for the Scala format check
-          # .mvn is needed to make the Maven wrapper accessible in test runs
-          mv ${{ env.CONTAINER_WORKING_DIR }}/* \
-            ${{ env.CONTAINER_WORKING_DIR }}/.scalafmt.conf \
-            ${{ env.CONTAINER_WORKING_DIR }}/.mvn \
-            ${{ env.CHECKOUT_DIR }}
+      - name: "Moves relevant checkout content to ${{ env.CHECKOUT_DIR }}"
+        uses: "./.github/actions/move_checkout"
+        with:
+          source-directory: ${{ env.CONTAINER_WORKING_DIR }}
+          target-directory: ${{ env.CHECKOUT_DIR }}
 
       - name: "Set coredump pattern"
         working-directory: ${{ env.CHECKOUT_DIR }}
