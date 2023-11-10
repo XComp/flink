@@ -117,10 +117,8 @@ jobs:
       - name: "Copy"
         run: |
           mkdir -p ${{ env.CHECKOUT_DIR }}
-          # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
-          # Using find is a workaround to achieve the same.
-          cd ${{ env.CONTAINER_WORKING_DIR }}
-          find . -mindepth 1 -maxdepth 1 -exec sh -c "echo {}; mv {} ${{ env.CHECKOUT_DIR }}/{}" \;
+          # .scalafmt.conf needs to be explicitly moved because it's needed for the scala format check (even though it's a hidden file)
+          mv ${{ env.CONTAINER_WORKING_DIR }}/* ${{ env.CONTAINER_WORKING_DIR }}/.scalafmt.conf ${{ env.CHECKOUT_DIR }}/
 
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -168,10 +166,8 @@ jobs:
       - name: "Copy"
         run: |
           mkdir -p ${{ env.CHECKOUT_DIR }}
-          # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
-          # Using find is a workaround to achieve the same.
-          cd ${{ env.CONTAINER_WORKING_DIR }}
-          find . -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
+          # .scalafmt.conf needs to be explicitly moved because it's needed for the scala format check (even though it's a hidden file)
+          mv ${{ env.CONTAINER_WORKING_DIR }}/* ${{ env.CONTAINER_WORKING_DIR }}/.scalafmt.conf ${{ env.CHECKOUT_DIR }}/
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v2
