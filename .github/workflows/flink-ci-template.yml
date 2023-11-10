@@ -116,6 +116,8 @@ jobs:
 
       - name: "Copy"
         run: |
+          mkdir -p ${{ env.CHECKOUT_DIR }}
+          
           # .scalafmt.conf is needed for the Scala format check
           # .mvn is needed to make the Maven wrapper accessible in test runs
           mv ${{ env.CONTAINER_WORKING_DIR }}/* \
@@ -239,6 +241,8 @@ jobs:
 
       - name: "Copy"
         run: |
+          mkdir -p ${{ env.CHECKOUT_DIR }}
+          
           # .scalafmt.conf is needed for the Scala format check
           # .mvn is needed to make the Maven wrapper accessible in test runs
           mv ${{ env.CONTAINER_WORKING_DIR }}/* \
