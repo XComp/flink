@@ -41,7 +41,7 @@ on:
 permissions: read-all
 
 env:
-  MAVEN_ARGS: -Dmaven.repo.local=~/.m2/repository
+  MAVEN_ARGS: -Dmaven.repo.local=/home/runner/.m2/repository
   FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
   DOCKER_IMAGES_CACHE_FOLDER: .docker-cache
 
@@ -61,6 +61,13 @@ jobs:
           distribution: "temurin"
           java-version: ${{ inputs.jdk-version }}
           cache: "maven"
+
+      - name: "DEBUG"
+        run: |
+          echo "HOME: ${HOME}"
+          
+          echo "find:"
+          find /home/runner -maxdepth 3
 
       - name: "Codestyle"
         run: |
