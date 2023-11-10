@@ -43,6 +43,7 @@ permissions: read-all
 env:
   # The working directory within the Docker container is set to /__w which is mapped to the runner
   # directory /home/runner/work.
+  CONTAINER_WORKING_DIR: /__w/flink/flink
   MAVEN_REPO_FOLDER: /__w/flink/flink/.m2/repository
   MAVEN_ARGS: -Dmaven.repo.local=/__w/flink/flink/.m2/repository
   FLINK_ARTIFACT_DIR: /root/
@@ -118,7 +119,7 @@ jobs:
           mkdir -p ${{ env.CHECKOUT_DIR }}
           # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
           # Using find is a workaround to achieve the same.
-          find ${{ github.workspace }} -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
+          find ${{ env.CONTAINER_WORKING_DIR }} -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
 
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -168,7 +169,7 @@ jobs:
           mkdir -p ${{ env.CHECKOUT_DIR }}
           # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
           # Using find is a workaround to achieve the same.
-          find ${{ github.workspace }} -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
+          find ${{ env.CONTAINER_WORKING_DIR }} -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v2
@@ -235,7 +236,7 @@ jobs:
           mkdir -p ${{ env.CHECKOUT_DIR }}
           # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
           # Using find is a workaround to achieve the same.
-          find ${{ github.workspace }} -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
+          find ${{ env.CONTAINER_WORKING_DIR }} -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
 
       - name: "Set coredump pattern"
         working-directory: ${{ env.CHECKOUT_DIR }}
