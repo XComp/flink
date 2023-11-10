@@ -120,7 +120,7 @@ jobs:
           # mv doesn't work out-of-the-box with hidden files (i.e. file name starts with a dot). 
           # Using find is a workaround to achieve the same.
           cd ${{ env.CONTAINER_WORKING_DIR }}
-          find . -mindepth 1 -maxdepth 1 -exec mv {} ${{ env.CHECKOUT_DIR }}/{} \;
+          find . -mindepth 1 -maxdepth 1 -exec sh -c "echo {}; mv {} ${{ env.CHECKOUT_DIR }}/{}" \;
 
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
