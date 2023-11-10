@@ -41,7 +41,7 @@ on:
 permissions: read-all
 
 env:
-  MAVEN_ARGS: -Dmaven.repo.local=/home/runner/.m2/repository
+  MAVEN_ARGS: "-Dmaven.repo.local=/home/runner/.m2/repository -X"
   FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
   DOCKER_IMAGES_CACHE_FOLDER: .docker-cache
 
