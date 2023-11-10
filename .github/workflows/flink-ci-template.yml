@@ -41,23 +41,13 @@ on:
 permissions: read-all
 
 env:
-  # The working directory within the Docker container is set to /__w which is mapped to the runner
-  # directory /home/runner/work.
-  CONTAINER_WORKING_DIR: /__w/flink/flink
-  MAVEN_REPO_FOLDER: /__w/flink/flink/.m2/repository
-  MAVEN_ARGS: -Dmaven.repo.local=/__w/flink/flink/.m2/repository
-  FLINK_ARTIFACT_DIR: /root/
   FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
-  DOCKER_IMAGES_CACHE_FOLDER: /root/.docker-cache
-  CHECKOUT_DIR: /root/flink
+  DOCKER_IMAGES_CACHE_FOLDER: .docker-cache
 
 jobs:
   qa:
     name: "Basic QA"
     runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-      options: --init
 
     steps:
       - name: "Flink Checkout"
@@ -65,10 +55,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
-        uses: "./.github/actions/set_java_in_container"
+      - uses: actions/setup-java@v3
         with:
-          jdk-version: ${{ inputs.jdk-version }}
+          distribution: "temurin"
+          java-version: ${{ inputs.jdk-version }}
+          cache: "maven"
 
       - name: "Codestyle"
         run: |
@@ -82,9 +73,6 @@ jobs:
   compile:
     name: "Compile"
     runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-      options: --init
     timeout-minutes: 240
     outputs:
       stringified-workflow-name: ${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}
@@ -100,48 +88,31 @@ jobs:
           stringified_workflow_name=$(echo "${{ github.workflow }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
           echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
 
-      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
-        uses: "./.github/actions/set_java_in_container"
+      - uses: actions/setup-java@v3
         with:
-          jdk-version: ${{ inputs.jdk-version }}
-
-      - name: "Setup Maven package cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.MAVEN_REPO_FOLDER }}
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-maven-
-
-      - name: "Moves relevant checkout content to ${{ env.CHECKOUT_DIR }}"
-        uses: "./.github/actions/move_checkout"
-        with:
-          source-directory: ${{ env.CONTAINER_WORKING_DIR }}
-          target-directory: ${{ env.CHECKOUT_DIR }}
+          distribution: "temurin"
+          java-version: ${{ inputs.jdk-version }}
+          cache: "maven"
 
       - name: "Compile Flink"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
           ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dflink.markBundledAsOptional=false -Dfast" || exit $?
 
       - name: "Collect build artifacts"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ./tools/azure-pipelines/create_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
+          ./tools/azure-pipelines/create_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }}
 
       - name: "Upload artifacts to make them available in downstream jobs"
         uses: actions/upload-artifact@v3
         with:
           name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }}
+          path: ${{ github.workspace }}${{ env.FLINK_ARTIFACT_FILENAME }}
           if-no-files-found: error
 
   packaging:
     name: "Test packaging/licensing"
     needs: compile
     runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-      options: --init
 
     steps:
       - name: "Flink Checkout"
@@ -149,37 +120,23 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
-        uses: "./.github/actions/set_java_in_container"
+      - uses: actions/setup-java@v3
         with:
-          jdk-version: ${{ inputs.jdk-version }}
-
-      - name: "Setup Maven package cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.MAVEN_REPO_FOLDER }}
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-maven-
-
-      - name: "Moves relevant checkout content to ${{ env.CHECKOUT_DIR }}"
-        uses: "./.github/actions/move_checkout"
-        with:
-          source-directory: ${{ env.CONTAINER_WORKING_DIR }}
-          target-directory: ${{ env.CHECKOUT_DIR }}
+          distribution: "temurin"
+          java-version: ${{ inputs.jdk-version }}
+          cache: "maven"
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v3
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
+          path: ${{ github.workspace }}
 
       - name: "Unpack build artifact"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
+          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Test"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
           ${{ inputs.environment }} ./tools/ci/compile_ci.sh || exit $?
 
@@ -187,9 +144,6 @@ jobs:
     name: "Test (module: ${{ matrix.module }})"
     needs: compile
     runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-      options: --init
     strategy:
       fail-fast: false
       matrix:
@@ -215,55 +169,39 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
-        uses: "./.github/actions/set_java_in_container"
+      - uses: actions/setup-java@v3
         with:
-          jdk-version: ${{ inputs.jdk-version }}
-
-      - name: "Setup Maven package cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.MAVEN_REPO_FOLDER }}
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-maven-
-
-      - name: "Moves relevant checkout content to ${{ env.CHECKOUT_DIR }}"
-        uses: "./.github/actions/move_checkout"
-        with:
-          source-directory: ${{ env.CONTAINER_WORKING_DIR }}
-          target-directory: ${{ env.CHECKOUT_DIR }}
+          distribution: "temurin"
+          java-version: ${{ inputs.jdk-version }}
+          cache: "maven"
 
       - name: "Set coredump pattern"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         run: sudo sysctl -w kernel.core_pattern=core.%p
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v3
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
+          path: ${{ github.workspace }}
 
       - name: "Unpack build artifact"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }} -t .
+          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
         uses: actions/cache@v3
         with:
-          path: ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
+          path: ${{ github.workspace }}/${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
           key: ${{ matrix.module }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
           restore-keys: ${{ matrix.module }}-docker-${{ runner.os }}
 
       - name: "Load Docker images if not present in cache, yet"
         if: ${{ !cancelled() && !steps.docker-cache.cache.hit }}
-        working-directory: ${{ env.CHECKOUT_DIR }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
+        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ github.workspace }}/${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
 
       - name: "Test - ${{ matrix.module }}"
         id: test-run
-        working-directory: ${{ env.CHECKOUT_DIR }}
         env:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
@@ -274,12 +212,11 @@ jobs:
         run: |
           ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
               -a ${{ github.job }} \
-              -d ${{ env.FLINK_ARTIFACT_DIR }} \
+              -d ${{ github.workspace }} \
               -t 480 \
               ./tools/ci/test_controller.sh ${{ matrix.module }}
 
       - name: "Post-process build artifacts"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         run: find ${{ steps.test-run.outputs.debug-files-output-dir }} -type f -exec rename 's/[:<>|*?]/-/' {} \;
 
       - name: "Upload build artifacts"
@@ -290,17 +227,13 @@ jobs:
           path: ${{ steps.test-run.outputs.debug-files-output-dir }}
 
       - name: "Save Docker images to cache"
-        working-directory: ${{ env.CHECKOUT_DIR }}
         if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} save
+        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ github.workspace }}/${{ env.DOCKER_IMAGES_CACHE_FOLDER }} save
 
   e2e-prereq-check:
     name: "Check: Code modified"
     needs: compile
     runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-      options: --init
     outputs:
       skip-e2e: ${{ steps.docs-only-pr-check.skip-e2e }}
     steps:
@@ -333,7 +266,6 @@ jobs:
       E2E_TARBALL_CACHE: ${{ github.workspace }}/.e2e-tarbal-cache
       MAVEN_REPO_FOLDER: ${{ github.workspace }}/.m2/repository
       MAVEN_ARGS: -Dmaven.repo.local=${{ github.workspace }}/.m2/repository
-      FLINK_ARTIFACT_DIR: ${{ github.workspace }}
       FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
       DOCKER_IMAGES_CACHE_FOLDER: ${{ github.workspace }}/.docker-cache
     strategy:
@@ -347,29 +279,23 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
-        uses: "./.github/actions/set_java_in_container"
+      - uses: actions/setup-java@v3
         with:
-          jdk-version: ${{ inputs.jdk-version }}
+          distribution: "temurin"
+          java-version: ${{ inputs.jdk-version }}
+          cache: "maven"
 
       - name: "Install missing packages"
         run: sudo apt-get install -y net-tools docker-compose
-
-      - name: "Setup Maven package cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.MAVEN_REPO_FOLDER }}
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v3
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
+          path: ${{ github.workspace }}
 
       - name: "Unpack build artifact"
-        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ github.workspace }}
+        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ github.workspace }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ github.workspace }}
 
       # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
       # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
@@ -377,7 +303,7 @@ jobs:
         run: |
           mkdir -p ${{ env.E2E_CACHE_FOLDER }}
           mkdir -p ${{ env.E2E_TARBALL_CACHE }}
-          mkdir -p ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
+          mkdir -p ${{ github.workspace}}/${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
 
       - name: "Load E2E files from Cache"
         uses: actions/cache@v3
@@ -396,12 +322,12 @@ jobs:
         id: docker-cache
         uses: actions/cache@v3
         with:
-          path: ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
+          path: ${{ github.workspace }}/${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
           key: e2e-${{ matrix.group }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
 
       - name: "Load Docker images if not present in Cache, yet"
         if: ${{ !cancelled() && !steps.docker-cache.cache.hit }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
+        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ github.workspace}}/${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
 
       - name: "Build Flink"
         run: ${{ inputs.environment }} ./tools/ci/validate.sh "install -DskipTests -Dfast $PROFILE -Pskip-webui-build"
@@ -418,7 +344,7 @@ jobs:
         run: |
           ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh \
             -a ${{ github.job }} \
-            -d ${{ env.FLINK_ARTIFACT_DIR }} \
+            -d ${{ github.workspace }} \
             -t 310 \
             flink-end-to-end-tests/run-nightly-tests.sh ${{ matrix.group }}
 
@@ -431,4 +357,4 @@ jobs:
 
       - name: "Save Docker images to Cache"
         if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} save
+        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ github.workspace }}/${{ env.DOCKER_IMAGES_CACHE_FOLDER }} save
