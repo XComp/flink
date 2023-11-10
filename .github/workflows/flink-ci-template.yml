@@ -62,10 +62,10 @@ jobs:
       options: --init
 
     steps:
-      - name: "Set JDK version"
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
-          echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
+      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
+        uses: "./.github/actions/set_java_in_container"
+        with:
+          jdk-version: ${{ inputs.jdk-version }}
 
       - name: "Flink Checkout"
         uses: actions/checkout@v3
@@ -96,10 +96,10 @@ jobs:
           stringified_workflow_name=$(echo "${{ github.workflow }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
           echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
 
-      - name: "Set JDK version"
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
-          echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
+      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
+        uses: "./.github/actions/set_java_in_container"
+        with:
+          jdk-version: ${{ inputs.jdk-version }}
 
       - name: "Flink Checkout"
         uses: actions/checkout@v3
@@ -148,10 +148,10 @@ jobs:
       options: --init
 
     steps:
-      - name: "Set JDK version"
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
-          echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
+      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
+        uses: "./.github/actions/set_java_in_container"
+        with:
+          jdk-version: ${{ inputs.jdk-version }}
 
       - name: "Flink Checkout"
         uses: actions/checkout@v3
@@ -217,10 +217,10 @@ jobs:
             stringified-module-name: misc
 
     steps:
-      - name: "Set JDK version"
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
-          echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
+      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
+        uses: "./.github/actions/set_java_in_container"
+        with:
+          jdk-version: ${{ inputs.jdk-version }}
 
       - name: "Flink Checkout"
         uses: actions/checkout@v3
@@ -355,10 +355,10 @@ jobs:
         group: [1, 2]
 
     steps:
-      - name: "Set JDK version"
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
-          echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
+      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
+        uses: "./.github/actions/set_java_in_container"
+        with:
+          jdk-version: ${{ inputs.jdk-version }}
 
       - name: "Install missing packages"
         run: sudo apt-get install -y net-tools docker-compose
