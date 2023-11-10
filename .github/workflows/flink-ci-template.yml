@@ -62,13 +62,6 @@ jobs:
           java-version: ${{ inputs.jdk-version }}
           cache: "maven"
 
-      - name: "DEBUG"
-        run: |
-          echo "HOME: ${HOME}"
-          
-          echo "find:"
-          find /home/runner -maxdepth 3
-
       - name: "Codestyle"
         run: |
           ${{ inputs.environment }} ./tools/ci/validate.sh "checkstyle:check spotless:check -T2" || exit $?
@@ -96,11 +89,25 @@ jobs:
           stringified_workflow_name=$(echo "${{ github.workflow }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
           echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
 
+      - name: "DEBUG #0"
+        run: |
+          echo "HOME: ${HOME}"
+          
+          echo "find:"
+          find ${HOME} -maxdepth 3
+
       - uses: actions/setup-java@v3
         with:
           distribution: "temurin"
           java-version: ${{ inputs.jdk-version }}
           cache: "maven"
+
+      - name: "DEBUG #0"
+        run: |
+          echo "HOME: ${HOME}"
+          
+          echo "find:"
+          find ${HOME} -maxdepth 3
 
       - name: "Compile Flink"
         run: |
