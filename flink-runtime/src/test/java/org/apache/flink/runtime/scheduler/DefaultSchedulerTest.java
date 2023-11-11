@@ -143,6 +143,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link DefaultScheduler}. */
 public class DefaultSchedulerTest extends TestLogger {
@@ -238,6 +239,8 @@ public class DefaultSchedulerTest extends TestLogger {
                 .isGreaterThan(0L);
         assertThat(archivedExecutionGraph.getStatusTimestamp(JobStatus.CREATED)).isGreaterThan(0L);
         assertThat(archivedExecutionGraph.getStatusTimestamp(JobStatus.RUNNING)).isGreaterThan(0L);
+
+        fail("Deliberate test failure");
 
         // ensure correct order
         assertThat(archivedExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING))

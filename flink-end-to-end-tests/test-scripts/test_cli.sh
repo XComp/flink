@@ -136,6 +136,9 @@ if [ $EXIT_CODE == 0 ]; then
     EXIT_CODE=$? # expect matching job id extraction
 fi
 
+echo "Deliberate test failure"
+exit 1
+
 printf "\n==============================================================================\n"
 printf "Test list API on a streaming job \n"
 printf "==============================================================================\n"

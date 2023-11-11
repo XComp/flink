@@ -104,6 +104,9 @@ run_resume_savepoint_test() {
     exit 1
   fi
 
+  echo "Deliberate test failure"
+  exit 1
+
   # Since it is not possible to differentiate reporter output between the first and second execution,
   # we remember the number of metrics sampled in the first execution so that they can be ignored in the following monitorings
   OLD_NUM_METRICS=$(get_num_metric_samples)
