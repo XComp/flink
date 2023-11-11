@@ -60,7 +60,13 @@ jobs:
         with:
           distribution: "temurin"
           java-version: ${{ inputs.jdk-version }}
-          cache: "maven"
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Codestyle"
         run: |
@@ -100,7 +106,13 @@ jobs:
         with:
           distribution: "temurin"
           java-version: ${{ inputs.jdk-version }}
-          cache: "maven"
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "DEBUG #0"
         run: |
@@ -139,7 +151,13 @@ jobs:
         with:
           distribution: "temurin"
           java-version: ${{ inputs.jdk-version }}
-          cache: "maven"
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v3
@@ -188,7 +206,13 @@ jobs:
         with:
           distribution: "temurin"
           java-version: ${{ inputs.jdk-version }}
-          cache: "maven"
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Set coredump pattern"
         run: sudo sysctl -w kernel.core_pattern=core.%p
@@ -294,7 +318,20 @@ jobs:
         with:
           distribution: "temurin"
           java-version: ${{ inputs.jdk-version }}
-          cache: "maven"
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: "Setup Maven package cache"
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
       - name: "Install missing packages"
         run: sudo apt-get install -y net-tools docker-compose
