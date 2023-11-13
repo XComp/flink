@@ -62,6 +62,7 @@ under the License.
 		</repository>
 	</repositories>
 
+	<!-- random comment to trigger new cache key -->
 	<modules>
 		<module>flink-annotations</module>
 		<module>flink-architecture-tests</module>
