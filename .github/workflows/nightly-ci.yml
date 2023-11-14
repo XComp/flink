@@ -27,6 +27,12 @@ env:
 permissions: read-all
 
 jobs:
+  basic-qa:
+    name: "Basic quality checks"
+    uses: ./.github/workflows/basic-qa-template.yml
+    with:
+      jdk-version: 8
+
   java:
     name: "Java ${{ matrix.java.version }}/Hadoop 2.10.2/Scala 2.12"
     strategy:

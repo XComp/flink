@@ -24,6 +24,11 @@ on:
 permissions: read-all
 
 jobs:
+  basic-qa:
+    name: "Basic quality checks"
+    uses: ./.github/workflows/basic-qa-template.yml
+    with:
+      jdk-version: 8
   ci:
     name: "Flink CI (Java 8/Scala 2.12/Hadoop 2.10.2)"
     uses: ./.github/workflows/flink-ci-template.yml
