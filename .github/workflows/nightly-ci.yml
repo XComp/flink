@@ -1,0 +1,95 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: "Flink nightly CI"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 20 * * *'
+
+env:
+  hadoop.default-version: 2.10.2
+  scala.default-version: 2.12
+
+permissions: read-all
+
+jobs:
+  java:
+    name: "Java ${{ matrix.java.version }}/Hadoop 2.10.2/Scala 2.12"
+    strategy:
+      matrix:
+        java.version: [8, 11, 17]
+        include:
+          - java.version: 11
+            java.jdk-env-variable-ext: "-Djdk11"
+          - java.version: 17
+            java.jdk-env-variable-ext: "-Djdk11 -Djdk17"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 ${{ matrix.java.jdk-env-variable-ext }} -Pjava${{ matrix.java.version }}-target"'
+      jdk-version: ${{ matrix.java.version }}
+    secrets:
+      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
+      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
+      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
+      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
+  hadoop313:
+    name: "Hadoop 3.2.3 (Java 8)"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3"'
+      jdk-version: 8
+    secrets:
+      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
+      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
+      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
+      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
+  adaptive-scheduler:
+    name: "AdaptiveScheduler enabled (Java 8/Hadoop 2.10.2/Scala 2.12)"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Penable-adaptive-scheduler"'
+      jdk-version: 8
+    secrets:
+      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
+      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
+      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
+      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
+  docs-404-check:
+    runs-on: ubuntu-latest
+    container:
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
+    steps:
+      - name: "Checks out Flink"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: "Mark GHA checkout as a safe directory (workaround for https://github.com/actions/checkout/issues/1169)"
+        run: git config --system --add safe.directory $GITHUB_WORKSPACE
+        shell: bash
+
+      - name: "Check if PR contains docs change"
+        run: |
+          source ./tools/azure-pipelines/build_properties.sh
+          pr_contains_docs_changes
+        shell: bash
+
+      - name: "Builds docs"
+        run: ./tools/ci/docs.sh
