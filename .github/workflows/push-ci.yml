@@ -19,7 +19,7 @@ on:
   push:
   workflow_dispatch:
   schedule:
-    - cron: '0 1,6,11,16,21 * * *'
+    - cron: '0 1,6,11,16 * * *'
 
 permissions: read-all
 
