@@ -18,6 +18,10 @@ name: "Build and Test Apache Flink"
 on:
   workflow_call:
     inputs:
+      workflow-caller-id:
+        description: "The calling job's ID"
+        default: ""
+        type: string
       environment:
         description: "defines environment variables for downstream scripts"
         required: true
@@ -70,8 +74,8 @@ jobs:
       - name: "Stringify workflow name"
         id: workflow-prep-step
         run: |
-          stringified_workflow_name=$(echo "${{ github.workflow }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
-          echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
+          stringified_workflow_name=$(echo "${{ github.workflow }}-${{ inputs.workflow-caller-id }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
+          echo "stringified-workflow-name=${stringified_workflow_name}-${{ inputs.workflow-caller-id }}" >> $GITHUB_OUTPUT
 
       - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
         uses: "./.github/actions/set_java_in_container"
