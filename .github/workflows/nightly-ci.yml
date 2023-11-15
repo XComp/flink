@@ -33,20 +33,36 @@ jobs:
     with:
       jdk-version: 8
 
-  java:
-    name: "Java ${{ matrix.java.version }}/Hadoop 2.10.2/Scala 2.12"
-    strategy:
-      matrix:
-        java.version: [8, 11, 17]
-        include:
-          - java.version: 11
-            java.jdk-env-variable-ext: "-Djdk11"
-          - java.version: 17
-            java.jdk-env-variable-ext: "-Djdk11 -Djdk17"
+  java8:
+    name: "Java 8/Hadoop 2.10.2/Scala 2.12"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
-      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 ${{ matrix.java.jdk-env-variable-ext }} -Pjava${{ matrix.java.version }}-target"'
-      jdk-version: ${{ matrix.java.version }}
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12"'
+      jdk-version: 8
+    secrets:
+      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
+      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
+      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
+      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
+  java11:
+    name: "Java 11/Hadoop 2.10.2/Scala 2.12"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"'
+      jdk-version: 11
+    secrets:
+      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
+      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
+      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
+      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
+  java17:
+    name: "Java 17/Hadoop 2.10.2/Scala 2.12"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Djdk17 -Pjava17-target"'
+      jdk-version: 17
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
