@@ -75,7 +75,7 @@ jobs:
         id: workflow-prep-step
         run: |
           stringified_workflow_name=$(echo "${{ github.workflow }}-${{ inputs.workflow-caller-id }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
-          echo "stringified-workflow-name=${stringified_workflow_name}-${{ inputs.workflow-caller-id }}" >> $GITHUB_OUTPUT
+          echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
 
       - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
         uses: "./.github/actions/set_java_in_container"
