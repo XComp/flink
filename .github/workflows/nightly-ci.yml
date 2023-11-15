@@ -37,6 +37,7 @@ jobs:
     name: "Java 8/Hadoop 2.10.2/Scala 2.12"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
+      workflow-caller-id: java8
       environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12"'
       jdk-version: 8
     secrets:
@@ -49,6 +50,7 @@ jobs:
     name: "Java 11/Hadoop 2.10.2/Scala 2.12"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
+      workflow-caller-id: java11
       environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"'
       jdk-version: 11
     secrets:
@@ -61,6 +63,7 @@ jobs:
     name: "Java 17/Hadoop 2.10.2/Scala 2.12"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
+      workflow-caller-id: java17
       environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Djdk17 -Pjava17-target"'
       jdk-version: 17
     secrets:
@@ -73,6 +76,7 @@ jobs:
     name: "Hadoop 3.2.3 (Java 8)"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
+      workflow-caller-id: hadoop313
       environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3"'
       jdk-version: 8
     secrets:
@@ -85,6 +89,7 @@ jobs:
     name: "AdaptiveScheduler enabled (Java 8/Hadoop 2.10.2/Scala 2.12)"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
+      workflow-caller-id: adaptive-scheduler
       environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Penable-adaptive-scheduler"'
       jdk-version: 8
     secrets:
