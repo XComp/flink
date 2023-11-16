@@ -25,6 +25,8 @@ on:
 
 permissions: read-all
 
+# This workflow should only contain steps that do not require the compilation of Flink (and therefore, are
+# independent of the used JDK)
 jobs:
   qa:
     name: "Basic QA"
