@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Flink CI (nightly)"
+name: "Flink CI (extended)"
 
 on:
   workflow_call:
@@ -29,6 +29,13 @@ on:
         required: false
       s3_secret_key:
         required: false
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "The branch the extended workflow should run on."
+        required: true
+        default: "master"
+        type: string
 
 permissions: read-all
 
