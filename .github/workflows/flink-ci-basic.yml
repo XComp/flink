@@ -39,7 +39,7 @@ jobs:
     with:
       branch: ${{ inputs.branch }}
   ci:
-    name: "Flink CI (Java 8/Scala 2.12/Hadoop 2.10.2)"
+    name: "Flink CI (Java 8/Hadoop 2.10.2)"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
       branch: ${{ inputs.branch }}
