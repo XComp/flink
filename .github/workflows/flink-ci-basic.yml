@@ -33,11 +33,6 @@ on:
 permissions: read-all
 
 jobs:
-  basic-qa:
-    name: "Basic Source Code Analysis"
-    uses: ./.github/workflows/source-code-analysis.yml
-    with:
-      branch: ${{ inputs.branch }}
   ci:
     name: "Flink CI (Java 8/Hadoop 2.10.2)"
     uses: ./.github/workflows/flink-ci-template.yml

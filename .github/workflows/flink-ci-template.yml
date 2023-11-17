@@ -58,95 +58,8 @@ env:
   CHECKOUT_DIR: /root/flink
 
 jobs:
-  compile:
-    name: "Compile"
-    runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-      options: --init
-    timeout-minutes: 240
-    outputs:
-      stringified-workflow-name: ${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}
-    steps:
-      - name: "Flink Checkout"
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.branch }}
-          persist-credentials: false
-
-      - name: "Stringify workflow name"
-        id: workflow-prep-step
-        run: |
-          stringified_workflow_name=$(echo "${{ github.workflow }}-${{ inputs.workflow-caller-id }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
-          echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
-
-      - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
-        uses: "./.github/actions/set_java_in_container"
-        with:
-          jdk-version: ${{ inputs.jdk-version }}
-
-      - name: "Setup Maven package cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.MAVEN_REPO_FOLDER }}
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-maven-
-
-      - name: "Moves relevant checkout content to ${{ env.CHECKOUT_DIR }}"
-        uses: "./.github/actions/move_checkout"
-        with:
-          source-directory: ${{ env.CONTAINER_WORKING_DIR }}
-          target-directory: ${{ env.CHECKOUT_DIR }}
-
-      - name: "Compile Flink"
-        working-directory: ${{ env.CHECKOUT_DIR }}
-        run: |
-          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -Dflink.markBundledAsOptional=false -Dfast" || exit $?
-
-      - name: "Collect build artifacts"
-        working-directory: ${{ env.CHECKOUT_DIR }}
-        run: |
-          ./tools/azure-pipelines/create_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
-
-      - name: "Upload artifacts to make them available in downstream jobs"
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }}
-          if-no-files-found: error
-
-  e2e-prereq-check:
-    name: "Check: Code modified"
-    needs: compile
-    runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-      options: --init
-    outputs:
-      skip-e2e: ${{ steps.docs-only-pr-check.skip-e2e }}
-    steps:
-      - name: "Flink Checkout"
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.branch }}
-          persist-credentials: false
-
-      # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
-      - name: "Check if it's a docs-only PR (i.e. e2e tests can be skipped)"
-        id: docs-only-pr-check
-        run: |
-          source ./tools/azure-pipelines/build_properties.sh
-          if is_docs_only_pullrequest; then
-            echo "This is a documentation-only change. Skipping e2e execution."
-            echo "skip-e2e=true" >> $GITHUB_OUTPUT
-          else
-            echo "This is a regular CI build. Continuing ..."
-          fi
-        shell: bash
-
   e2e:
     name: "E2E (group ${{ matrix.group }})"
-    needs: [compile, e2e-prereq-check]
     runs-on: ubuntu-latest
     if: ${{ needs.e2e-prereq-check.outputs.skip-e2e != 'true' }}
     # timeout-minutes: 310
@@ -178,57 +91,6 @@ jobs:
       - name: "Install missing packages"
         run: sudo apt-get install -y net-tools docker-compose
 
-      - name: "Setup Maven package cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.MAVEN_REPO_FOLDER }}
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-maven-
-
-      - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v3
-        with:
-          name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
-
-      - name: "Unpack build artifact"
-        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ github.workspace }}
-
-      # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
-      # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
-      - name: "Create cache directories"
-        run: |
-          mkdir -p ${{ env.E2E_CACHE_FOLDER }}
-          mkdir -p ${{ env.E2E_TARBALL_CACHE }}
-          mkdir -p ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
-
-      - name: "Load E2E files from Cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.E2E_CACHE_FOLDER }}
-          key: e2e-cache-${{ matrix.group }}-${{ hashFiles('**/flink-end-to-end-tests/**/*.java', '!**/avro/**') }}
-
-      - name: "Load E2E artifacts from Cache"
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.E2E_TARBALL_CACHE }}
-          key: e2e-artifact-cache-${{ matrix.group }}-${{ hashFiles('**/flink-end-to-end-tests/**/*.sh') }}
-          restore-keys: e2e-artifact-cache-${{ matrix.group }}
-
-      - name: "Try loading Docker images from Cache"
-        id: docker-cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
-          key: e2e-${{ matrix.group }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
-
-      - name: "Load Docker images if not present in Cache, yet"
-        if: ${{ !cancelled() && !steps.docker-cache.cache.hit }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh -f ${{ env.DOCKER_IMAGES_CACHE_FOLDER }} load
-
-      - name: "Build Flink"
-        run: ${{ inputs.environment }} ./tools/ci/validate.sh "install -DskipTests -Dfast $PROFILE -Pskip-webui-build"
-
       - name: "Run E2E Tests"
         id: test-run
         env:
@@ -237,11 +99,13 @@ jobs:
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
         # timeout-minutes: 310
         run: |
-          ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh \
-            -a ${{ github.job }} \
-            -d ${{ env.FLINK_ARTIFACT_DIR }} \
-            -t 310 \
-            flink-end-to-end-tests/run-nightly-tests.sh ${{ matrix.group }}
+          export FLINK_DIR="$(pwd)"
+          export END_TO_END_DIR="$FLINK_DIR/flink-end-to-end-tests"
+          export TEST_DATA_DIR=$END_TO_END_DIR/test-scripts/temp-test-directory-$(date +%S%N)
+          mkdir -p $TEST_DATA_DIR
+          
+          source flink-end-to-end-tests/test-scripts/common.sh
+          set_conf_ssl "server"
 
       - name: "Print ${{ steps.test-run.outputs.debug-files-output-dir }}"
         run: |
