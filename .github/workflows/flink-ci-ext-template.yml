@@ -48,36 +48,36 @@ jobs:
       jdk-version: 8
 
   java8:
-    name: "Java 8/Hadoop 2.10.2/Scala 2.12"
+    name: "Java 8/Hadoop 2.10.2"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
       workflow-caller-id: java8
       branch: ${{ inputs.branch }}
-      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12"'
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws"'
       jdk-version: 8
     secrets:
       s3_bucket: ${{ secrets.s3_bucket }}
       s3_access_key: ${{ secrets.s3_access_key }}
       s3_secret_key: ${{ secrets.s3_secret_key }}
   java11:
-    name: "Java 11/Hadoop 2.10.2/Scala 2.12"
+    name: "Java 11/Hadoop 2.10.2"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
       workflow-caller-id: java11
       branch: ${{ inputs.branch }}
-      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"'
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Djdk11 -Pjava11-target"'
       jdk-version: 11
     secrets:
       s3_bucket: ${{ secrets.s3_bucket }}
       s3_access_key: ${{ secrets.s3_access_key }}
       s3_secret_key: ${{ secrets.s3_secret_key }}
   java17:
-    name: "Java 17/Hadoop 2.10.2/Scala 2.12"
+    name: "Java 17/Hadoop 2.10.2"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
       workflow-caller-id: java17
       branch: ${{ inputs.branch }}
-      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Djdk17 -Pjava17-target"'
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Djdk11 -Djdk17 -Pjava17-target"'
       jdk-version: 17
     secrets:
       s3_bucket: ${{ secrets.s3_bucket }}
@@ -96,12 +96,12 @@ jobs:
       s3_access_key: ${{ secrets.s3_access_key }}
       s3_secret_key: ${{ secrets.s3_secret_key }}
   adaptive-scheduler:
-    name: "AdaptiveScheduler enabled (Java 8/Hadoop 2.10.2/Scala 2.12)"
+    name: "AdaptiveScheduler (Java 8/Hadoop 2.10.2)"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
       workflow-caller-id: adaptive-scheduler
       branch: ${{ inputs.branch }}
-      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Penable-adaptive-scheduler"'
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Penable-adaptive-scheduler"'
       jdk-version: 8
     secrets:
       s3_bucket: ${{ secrets.s3_bucket }}
