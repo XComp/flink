@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This workflow is meant as an extended CI run that includes certain features that shall be tested
+# and JDK versions that are supported but not considered default.
+
 name: "Flink CI (extended)"
 
 on:
