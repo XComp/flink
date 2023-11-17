@@ -37,6 +37,7 @@ jobs:
     name: "Basic quality checks"
     uses: ./.github/workflows/basic-qa-template.yml
     with:
+      branch: ${{ inputs.branch }}
       jdk-version: 8
 
   java8:
