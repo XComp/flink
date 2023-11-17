@@ -40,8 +40,6 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
-      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
-      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   java11:
     name: "Java 11/Hadoop 2.10.2/Scala 2.12"
     uses: ./.github/workflows/flink-ci-template.yml
@@ -53,8 +51,6 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
-      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
-      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   java17:
     name: "Java 17/Hadoop 2.10.2/Scala 2.12"
     uses: ./.github/workflows/flink-ci-template.yml
@@ -66,8 +62,6 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
-      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
-      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   hadoop313:
     name: "Hadoop 3.2.3 (Java 8)"
     uses: ./.github/workflows/flink-ci-template.yml
@@ -79,8 +73,6 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
-      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
-      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   adaptive-scheduler:
     name: "AdaptiveScheduler enabled (Java 8/Hadoop 2.10.2/Scala 2.12)"
     uses: ./.github/workflows/flink-ci-template.yml
@@ -92,8 +84,6 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
-      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
-      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   docs-404-check:
     runs-on: ubuntu-latest
     container:

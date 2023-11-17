@@ -39,8 +39,6 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
-      glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
-      glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   docs-404-check:
     runs-on: ubuntu-latest
     container:

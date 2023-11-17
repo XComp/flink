@@ -37,10 +37,6 @@ on:
         required: false
       s3_secret_key:
         required: false
-      glue_schema_access_key:
-        required: false
-      glue_schema_secret_key:
-        required: false
 
 permissions: read-all
 
@@ -243,8 +239,6 @@ jobs:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
-          IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
-          IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
         # timeout-minutes: 240
         run: |
           ${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
@@ -387,8 +381,6 @@ jobs:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
-          IT_CASE_GLUE_SCHEMA_ACCESS_KEY: ${{ secrets.glue_schema_access_key }}
-          IT_CASE_GLUE_SCHEMA_SECRET_KEY: ${{ secrets.glue_schema_secret_key }}
         # timeout-minutes: 310
         run: |
           ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh \
