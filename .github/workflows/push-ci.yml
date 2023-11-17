@@ -18,6 +18,12 @@ name: "Flink CI (on push)"
 on:
   push:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: "The branch the extended workflow should run on."
+        required: true
+        default: "master"
+        type: string
   schedule:
     - cron: '0 1,6,11,16 * * *'
 
@@ -33,6 +39,7 @@ jobs:
     name: "Flink CI (Java 8/Scala 2.12/Hadoop 2.10.2)"
     uses: ./.github/workflows/flink-ci-template.yml
     with:
+      branch: ${{ inputs.branch }}
       environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12"'
       jdk-version: 8
     secrets:
@@ -47,6 +54,7 @@ jobs:
       - name: "Checks out Flink"
         uses: actions/checkout@v3
         with:
+          ref: ${{ inputs.branch }}
           persist-credentials: false
 
       - name: "Mark GHA checkout as a safe directory (workaround for https://github.com/actions/checkout/issues/1169)"

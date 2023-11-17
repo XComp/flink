@@ -1,0 +1,124 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: "Flink CI (nightly)"
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: "The branch the extended CI run should be executed on."
+        type: string
+        required: true
+    secrets:
+      s3_bucket:
+        required: false
+      s3_access_key:
+        required: false
+      s3_secret_key:
+        required: false
+
+permissions: read-all
+
+jobs:
+  basic-qa:
+    name: "Basic quality checks"
+    uses: ./.github/workflows/basic-qa-template.yml
+    with:
+      jdk-version: 8
+
+  java8:
+    name: "Java 8/Hadoop 2.10.2/Scala 2.12"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      workflow-caller-id: java8
+      branch: ${{ inputs.branch }}
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12"'
+      jdk-version: 8
+    secrets:
+      s3_bucket: ${{ secrets.s3_bucket }}
+      s3_access_key: ${{ secrets.s3_access_key }}
+      s3_secret_key: ${{ secrets.s3_secret_key }}
+  java11:
+    name: "Java 11/Hadoop 2.10.2/Scala 2.12"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      workflow-caller-id: java11
+      branch: ${{ inputs.branch }}
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"'
+      jdk-version: 11
+    secrets:
+      s3_bucket: ${{ secrets.s3_bucket }}
+      s3_access_key: ${{ secrets.s3_access_key }}
+      s3_secret_key: ${{ secrets.s3_secret_key }}
+  java17:
+    name: "Java 17/Hadoop 2.10.2/Scala 2.12"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      workflow-caller-id: java17
+      branch: ${{ inputs.branch }}
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Djdk17 -Pjava17-target"'
+      jdk-version: 17
+    secrets:
+      s3_bucket: ${{ secrets.s3_bucket }}
+      s3_access_key: ${{ secrets.s3_access_key }}
+      s3_secret_key: ${{ secrets.s3_secret_key }}
+  hadoop313:
+    name: "Hadoop 3.2.3 (Java 8)"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      workflow-caller-id: hadoop313
+      branch: ${{ inputs.branch }}
+      environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3"'
+      jdk-version: 8
+    secrets:
+      s3_bucket: ${{ secrets.s3_bucket }}
+      s3_access_key: ${{ secrets.s3_access_key }}
+      s3_secret_key: ${{ secrets.s3_secret_key }}
+  adaptive-scheduler:
+    name: "AdaptiveScheduler enabled (Java 8/Hadoop 2.10.2/Scala 2.12)"
+    uses: ./.github/workflows/flink-ci-template.yml
+    with:
+      workflow-caller-id: adaptive-scheduler
+      branch: ${{ inputs.branch }}
+      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Penable-adaptive-scheduler"'
+      jdk-version: 8
+    secrets:
+      s3_bucket: ${{ secrets.s3_bucket }}
+      s3_access_key: ${{ secrets.s3_access_key }}
+      s3_secret_key: ${{ secrets.s3_secret_key }}
+  docs-404-check:
+    runs-on: ubuntu-latest
+    container:
+      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
+    steps:
+      - name: "Checks out Flink"
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.branch }}
+          persist-credentials: false
+
+      - name: "Mark GHA checkout as a safe directory (workaround for https://github.com/actions/checkout/issues/1169)"
+        run: git config --system --add safe.directory $GITHUB_WORKSPACE
+        shell: bash
+
+      - name: "Check if PR contains docs change"
+        run: |
+          source ./tools/azure-pipelines/build_properties.sh
+          pr_contains_docs_changes
+        shell: bash
+
+      - name: "Builds docs"
+        run: ./tools/ci/docs.sh
