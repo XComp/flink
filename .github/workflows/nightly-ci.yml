@@ -20,10 +20,6 @@ on:
   schedule:
     - cron: '0 20 * * *'
 
-env:
-  hadoop.default-version: 2.10.2
-  scala.default-version: 2.12
-
 permissions: read-all
 
 jobs:
