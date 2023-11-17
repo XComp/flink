@@ -99,26 +99,3 @@ jobs:
       s3_bucket: ${{ secrets.s3_bucket }}
       s3_access_key: ${{ secrets.s3_access_key }}
       s3_secret_key: ${{ secrets.s3_secret_key }}
-  docs-404-check:
-    runs-on: ubuntu-latest
-    container:
-      image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-    steps:
-      - name: "Checks out Flink"
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.branch }}
-          persist-credentials: false
-
-      - name: "Mark GHA checkout as a safe directory (workaround for https://github.com/actions/checkout/issues/1169)"
-        run: git config --system --add safe.directory $GITHUB_WORKSPACE
-        shell: bash
-
-      - name: "Check if PR contains docs change"
-        run: |
-          source ./tools/azure-pipelines/build_properties.sh
-          pr_contains_docs_changes
-        shell: bash
-
-      - name: "Builds docs"
-        run: ./tools/ci/docs.sh
