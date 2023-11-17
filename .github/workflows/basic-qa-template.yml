@@ -22,6 +22,11 @@ on:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
         required: true
         type: number
+      branch:
+        description: "The branch the extended workflow should run on."
+        required: true
+        default: "master"
+        type: string
 
 permissions: read-all
 
@@ -39,6 +44,7 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v3
         with:
+          ref: ${{ inputs.branch }}
           persist-credentials: false
 
       - name: "Set JDK version to Java ${{ inputs.jdk-version }}"
