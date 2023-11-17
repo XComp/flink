@@ -30,12 +30,10 @@ on:
         type: string
       jdk-version:
         description: "The Java version to use."
-        required: true
         default: 8
         type: number
       branch:
         description: "The branch the test suite should run on."
-        required: true
         default: "master"
         type: string
     secrets:

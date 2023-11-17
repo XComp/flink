@@ -23,13 +23,11 @@ on:
     inputs:
       jdk-version:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
-        required: true
         default: "8"
         type: choice
         options: ["8", "11", "17"]
       branch:
         description: "The branch the source code analysis should run on."
-        required: true
         default: "master"
         type: string
 
@@ -38,11 +36,9 @@ on:
       jdk-version:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
         default: 8
-        required: true
         type: number
       branch:
         description: "The branch the source code analysis should run on."
-        required: true
         default: "master"
         type: string
 
