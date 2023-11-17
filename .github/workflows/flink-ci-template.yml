@@ -13,25 +13,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Workflow template for triggering the Flink's test suite.
+
 name: "Build and Test Apache Flink"
 
 on:
   workflow_call:
     inputs:
       workflow-caller-id:
-        description: "The calling job's ID"
+        description: "The calling job's ID that can be used for build artifact names (that need to be different between different jobs of the same workflow)."
         default: ""
         type: string
       environment:
-        description: "defines environment variables for downstream scripts"
+        description: "Defines environment variables for downstream scripts."
         required: true
         type: string
       jdk-version:
-        description: "the jdk version to use"
+        description: "The Java version to use."
         required: true
+        default: 8
         type: number
       branch:
-        description: "The branch the extended workflow should run on."
+        description: "The branch the test suite should run on."
         required: true
         default: "master"
         type: string

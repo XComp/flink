@@ -13,35 +13,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Flink CI (on push)"
+# The nightly run workflow triggers the extended CI workflow on all
+# supported release branches and master.
+
+name: "Flink CI (nightly)"
 
 on:
-  push:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: "The branch the extended workflow should run on."
-        required: true
-        default: "master"
-        type: string
   schedule:
-    - cron: '0 1,6,11,16 * * *'
+    - cron: '0 20 * * *'
 
 permissions: read-all
 
 jobs:
-  basic-qa:
-    name: "Basic Source Code Analysis"
-    uses: ./.github/workflows/source-code-analysis.yml
+  nightly-ci:
+    name: "Nightly: ${{ matrix.branch }}"
+    if: (github.event_name == 'schedule')
+    strategy:
+      matrix:
+        branch:
+          - master
+          - release-1.18
+          - release-1.17
+    uses: ./.github/workflows/flink-ci-extended.yml
+    with:
+      branch: ${{ matrix.branch }}
+    secrets:
+      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
+      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
+      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+
+  extended-ci:
+    name: "Triggered Extended CI"
+    if: (github.event_name != 'schedule')
+    uses: ./.github/workflows/flink-ci-extended.yml
     with:
       branch: ${{ inputs.branch }}
-  ci:
-    name: "Flink CI (Java 8/Scala 2.12/Hadoop 2.10.2)"
-    uses: ./.github/workflows/flink-ci-template.yml
-    with:
-      branch: ${{ inputs.branch }}
-      environment: 'PROFILE="-Dflink.hadoop.version=2.10.2 -Dinclude_hadoop_aws"'
-      jdk-version: 8
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
