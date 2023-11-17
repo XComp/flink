@@ -34,7 +34,8 @@ jobs:
         branch:
           - master
           - release-1.18
-          - release-1.17
+          # FLINK-33586 - we need to add GHA support for the release branch before enabling this matrix parameter here
+          # - release-1.17
     uses: ./.github/workflows/flink-ci-extended.yml
     with:
       branch: ${{ matrix.branch }}
