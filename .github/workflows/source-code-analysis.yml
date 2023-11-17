@@ -13,17 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Runs basic QA checks"
+name: "Runs Source Code Analysis"
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       jdk-version:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
         required: true
+        default: "8"
+        type: choice
+        options: ["8", "11", "17"]
+      branch:
+        description: "The branch the source code analysis should run on."
+        required: true
+        default: "master"
+        type: string
+
+  workflow_call:
+    inputs:
+      jdk-version:
+        description: "The JDK version that shall be used as a default within the Flink CI Docker container."
+        default: 8
+        required: true
         type: number
       branch:
-        description: "The branch the extended workflow should run on."
+        description: "The branch the source code analysis should run on."
         required: true
         default: "master"
         type: string
