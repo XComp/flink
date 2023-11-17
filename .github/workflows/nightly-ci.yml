@@ -16,6 +16,7 @@
 name: "Flink CI (nightly)"
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 20 * * *'
 
