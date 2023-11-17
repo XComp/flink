@@ -25,7 +25,6 @@ on:
     inputs:
       branch:
         description: "The branch the extended workflow should run on."
-        required: true
         default: "master"
         type: string
   schedule:
