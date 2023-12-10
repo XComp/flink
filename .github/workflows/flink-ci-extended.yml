@@ -45,7 +45,7 @@ permissions: read-all
 
 jobs:
   basic-qa:
-    name: "Basic Source Code Analysis"
+    name: "Pre-compile Checks"
     uses: ./.github/workflows/pre-compile-checks.yml
     with:
       branch: ${{ inputs.branch }}

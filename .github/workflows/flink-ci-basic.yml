@@ -16,7 +16,7 @@
 # This workflow is meant for as a basic CI run covering the most-important features
 # and default Java version. It is meant to run before a PullRequest is merged.
 
-name: "Flink CI (on push)"
+name: "Flink CI (basic)"
 
 
 on:
@@ -34,7 +34,7 @@ permissions: read-all
 
 jobs:
   basic-qa:
-    name: "Basic Source Code Analysis"
+    name: "Pre-compile Checks"
     uses: ./.github/workflows/pre-compile-checks.yml
     with:
       branch: ${{ inputs.branch }}
