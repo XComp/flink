@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This workflow is meant as an extended CI run that includes certain features that shall be tested
+# and JDK versions that are supported but not considered default.
+
+name: "Nightly (master)"
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "The branch the extended workflow should run on."
+        default: "master"
+        type: string
+
+permissions: read-all
+
+jobs:
+  pre-compile-checks:
+    name: "Pre-compile Checks"
+    uses: ./.github/workflows/template.pre-compile-checks.yml
+    with:
+      branch: ${{ inputs.branch }}
+
+  workflow-config-selection:
+    name: "Selects CI workflow configurations"
+    runs-on: "ubuntu-latest"
+    outputs:
+      configs: ${{ steps.select-workflow-configs.outputs.workflow-configurations }}
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: "Loads workflow configuration for ${{ inputs.branch }}"
+        id: select-workflow-configs
+        uses: "./.github/actions/select_workflow_configs"
+        with:
+          config-folder: "./.github/workflows/configs"
+          profile: ${{ inputs.branch }}
+  flink-workflow:
+    needs: workflow-config-selection
+    strategy:
+      matrix: ${{ fromJSON(needs.workflow-config-selection.outputs.configs) }}
+      # a failure in one of the JDK workflows shouldn't affect the other workflows
+      fail-fast: false
+    name: "${{ matrix.calling_workflow_name }}"
+    uses: ./.github/workflows/template.flink-ci.yml
+    with:
+      workflow-caller-id: ${{ matrix.calling_workflow_id }}
+      branch: ${{ inputs.branch }}
+      environment: 'PROFILE="${{ matrix.env_params }}"'
+      jdk_version: ${{ matrix.jdk_version }}
+    secrets:
+      s3_bucket: ${{ secrets.s3_bucket }}
+      s3_access_key: ${{ secrets.s3_access_key }}
+      s3_secret_key: ${{ secrets.s3_secret_key }}
