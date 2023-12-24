@@ -19,7 +19,7 @@ name: "Nightly (current release)"
 
 on:
   schedule:
-    - cron: '0 22 * * *'
+    - cron: '0 6,16 * * *'
   workflow_dispatch:
 
 permissions: read-all
