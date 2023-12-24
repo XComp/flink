@@ -19,6 +19,8 @@
 name: "Flink CI (default)"
 
 on:
+  schedule:
+    - cron: '0 0,10,20 * * *'
   push:
   workflow_dispatch:
     inputs:
