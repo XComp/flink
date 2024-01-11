@@ -1052,20 +1052,18 @@ under the License.
 								</additionalJOptions>
 							</configuration>
 						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>
+									${github-actions.surefire.excludedGroups},
+									org.apache.flink.testutils.junit.FailsOnJava11,
+								</excludedGroups>
+							</configuration>
+						</plugin>
 					</plugins>
 				</pluginManagement>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<configuration>
-							<excludedGroups>
-								${github-actions.surefire.excludedGroups},
-								org.apache.flink.testutils.junit.FailsOnJava11,
-							</excludedGroups>
-						</configuration>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 
@@ -1103,19 +1101,21 @@ under the License.
 			</properties>
 
 			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<configuration>
-							<excludedGroups>
-								${github-actions.surefire.excludedGroups},
-								org.apache.flink.testutils.junit.FailsOnJava11,
-								org.apache.flink.testutils.junit.FailsOnJava17,
-							</excludedGroups>
-						</configuration>
-					</plugin>
-				</plugins>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>
+									${github-actions.surefire.excludedGroups},
+									org.apache.flink.testutils.junit.FailsOnJava11,
+									org.apache.flink.testutils.junit.FailsOnJava17,
+								</excludedGroups>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
 			</build>
 		</profile>
 
@@ -1172,19 +1172,6 @@ under the License.
 						</plugin>
 					</plugins>
 				</pluginManagement>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<configuration>
-							<excludedGroups>
-								${github-actions.surefire.excludedGroups},
-								org.apache.flink.testutils.junit.FailsOnJava11,
-								org.apache.flink.testutils.junit.FailsOnJava17,
-							</excludedGroups>
-						</configuration>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 
@@ -1786,7 +1773,6 @@ under the License.
 					</systemPropertyVariables>
 					<!-- This is picked up by IntelliJ -->
 					<argLine>${flink.surefire.baseArgLine}</argLine>
-					<excludedGroups>${github-actions.surefire.excludedGroups}</excludedGroups>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
