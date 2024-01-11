@@ -42,7 +42,7 @@ jobs:
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       branch: ${{ inputs.branch }}
-      environment: 'PROFILE="-Dinclude_hadoop_aws"'
+      environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3"'
       jdk_version: 8
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}

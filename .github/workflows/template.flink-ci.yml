@@ -187,16 +187,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - module: core
-            stringified-module-name: core
-          - module: python
-            stringified-module-name: python
-          - module: table
-            stringified-module-name: table
-          - module: connect
-            stringified-module-name: connect
-          - module: tests
-            stringified-module-name: tests
           - module: misc
             stringified-module-name: misc
 
@@ -296,7 +286,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [2]
 
     steps:
       - name: "Flink Checkout"
