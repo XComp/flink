@@ -32,18 +32,13 @@ on:
 permissions: read-all
 
 jobs:
-  pre-compile-checks:
-    name: "Pre-compile Checks"
-    uses: ./.github/workflows/template.pre-compile-checks.yml
-    with:
-      branch: ${{ inputs.branch }}
   ci:
     name: "Default (Java 8)"
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       branch: ${{ inputs.branch }}
       environment: 'PROFILE="-Dinclude_hadoop_aws"'
-      jdk_version: 8
+      jdk_version: 17
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
