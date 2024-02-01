@@ -86,7 +86,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForOneMoreCheckpoint;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForNewCheckpoint;
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForAvailableSlots;
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForRunningTasks;
 import static org.junit.Assert.assertEquals;
@@ -263,7 +263,13 @@ public class AutoRescalingITCase extends TestLogger {
 
             waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            // We must wait for a checkpoint that is triggered after calling waitForNewCheckpoint.
+            // This test will fail if the job recovers from a checkpoint triggered before
+            // `SubtaskIndexFlatMapper.workCompletedLatch.await` and after calling
+            // `waitForNewCheckpoint`. Because `SubtaskIndexFlatMapper` expects
+            // `ValueState<Integer> counter` and `ValueState<Integer> sum` after recovery from
+            // the checkpoint to be the count and sum of all data.
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             SubtaskIndexSource.SOURCE_LATCH.reset();
 
@@ -330,7 +336,7 @@ public class AutoRescalingITCase extends TestLogger {
             // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
             for (JobVertex vertex : jobGraph.getVertices()) {
@@ -413,7 +419,7 @@ public class AutoRescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             SubtaskIndexSource.SOURCE_LATCH.reset();
 
@@ -515,7 +521,7 @@ public class AutoRescalingITCase extends TestLogger {
         // wait until the operator handles some data
         StateSourceBase.workStartedLatch.await();
 
-        waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+        waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
         JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
         for (JobVertex vertex : jobGraph.getVertices()) {

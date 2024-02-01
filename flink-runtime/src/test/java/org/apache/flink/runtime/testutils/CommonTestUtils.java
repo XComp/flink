@@ -367,21 +367,21 @@ public class CommonTestUtils {
                 });
     }
 
-    /** Wait for on more completed checkpoint. */
-    public static void waitForOneMoreCheckpoint(JobID jobID, MiniCluster miniCluster)
-            throws Exception {
-        final long[] currentCheckpoint = new long[] {-1L};
+    /**
+     * Wait for a new completed checkpoint, the new checkpoint must be triggered after
+     * waitForNewCheckpoint is called.
+     */
+    public static void waitForNewCheckpoint(JobID jobID, MiniCluster miniCluster) throws Exception {
+        final long startTime = System.currentTimeMillis();
         waitUntilCondition(
                 () -> {
                     AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
                     CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
                     if (snapshot != null) {
-                        long currentCount = snapshot.getCounts().getNumberOfCompletedCheckpoints();
-                        if (currentCheckpoint[0] < 0L) {
-                            currentCheckpoint[0] = currentCount;
-                        } else {
-                            return currentCount > currentCheckpoint[0];
-                        }
+                        final CompletedCheckpointStats latestCompletedCheckpoint =
+                                snapshot.getHistory().getLatestCompletedCheckpoint();
+                        return latestCompletedCheckpoint != null
+                                && latestCompletedCheckpoint.getTriggerTimestamp() > startTime;
                     } else if (graph.getState().isGloballyTerminalState()) {
                         checkState(
                                 graph.getFailureInfo() != null,
