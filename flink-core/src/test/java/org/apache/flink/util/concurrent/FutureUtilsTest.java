@@ -25,6 +25,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -46,7 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
+import java.util.function.Predicate;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,17 +66,13 @@ class FutureUtilsTest {
         final AtomicInteger atomicInteger = new AtomicInteger(0);
         CompletableFuture<Boolean> retryFuture =
                 FutureUtils.retry(
-                        () ->
-                                CompletableFuture.supplyAsync(
-                                        () -> {
-                                            if (atomicInteger.incrementAndGet() == retries) {
-                                                return true;
-                                            } else {
-                                                throw new CompletionException(
-                                                        new FlinkException("Test exception"));
-                                            }
-                                        },
-                                        EXECUTOR_RESOURCE.getExecutor()),
+                        () -> {
+                            if (atomicInteger.incrementAndGet() == retries) {
+                                return true;
+                            } else {
+                                throw new CompletionException(new FlinkException("Test exception"));
+                            }
+                        },
                         retries,
                         EXECUTOR_RESOURCE.getExecutor());
 
@@ -148,7 +145,10 @@ class FutureUtilsTest {
         assertThat(atomicThrowable.get()).isNull();
     }
 
-    /** Test that {@link FutureUtils#retry} should stop at non-retryable exception. */
+    /**
+     * Test that {@link FutureUtils#retry(SupplierWithException, int, Predicate, Executor)} should
+     * stop at non-retryable exception.
+     */
     @Test
     void testStopAtNonRetryableException() {
         final int retries = 10;
@@ -158,19 +158,14 @@ class FutureUtilsTest {
                 new FlinkRuntimeException("Non-retryable exception");
         CompletableFuture<Boolean> retryFuture =
                 FutureUtils.retry(
-                        () ->
-                                CompletableFuture.supplyAsync(
-                                        () -> {
-                                            if (atomicInteger.incrementAndGet() == notRetry) {
-                                                // throw non-retryable exception
-                                                throw new CompletionException(
-                                                        nonRetryableException);
-                                            } else {
-                                                throw new CompletionException(
-                                                        new FlinkException("Test exception"));
-                                            }
-                                        },
-                                        EXECUTOR_RESOURCE.getExecutor()),
+                        () -> {
+                            if (atomicInteger.incrementAndGet() == notRetry) {
+                                // throw non-retryable exception
+                                throw new CompletionException(nonRetryableException);
+                            } else {
+                                throw new CompletionException(new FlinkException("Test exception"));
+                            }
+                        },
                         retries,
                         throwable ->
                                 ExceptionUtils.findThrowable(throwable, FlinkException.class)
@@ -216,10 +211,9 @@ class FutureUtilsTest {
                 FutureUtils.retryWithDelay(
                         () -> {
                             if (countDown.getAndDecrement() == 0) {
-                                return CompletableFuture.completedFuture(true);
+                                return true;
                             } else {
-                                return FutureUtils.completedExceptionally(
-                                        new FlinkException("Test exception."));
+                                throw new FlinkException("Test exception.");
                             }
                         },
                         new ExponentialBackoffRetryStrategy(
@@ -286,17 +280,15 @@ class FutureUtilsTest {
         final ScheduledExecutorService retryExecutor = EXECUTOR_RESOURCE.getExecutor();
         final String retryableExceptionMessage = "first exception";
         final String expectedErrorMessage = "should propagate";
-        class TestStringSupplier implements Supplier<CompletableFuture<String>> {
+        class TestStringSupplier implements SupplierWithException<String, Throwable> {
             private final AtomicInteger counter = new AtomicInteger();
 
             @Override
-            public CompletableFuture<String> get() {
+            public String get() {
                 if (counter.getAndIncrement() == 0) {
-                    return FutureUtils.completedExceptionally(
-                            new RuntimeException(retryableExceptionMessage));
+                    throw new RuntimeException(retryableExceptionMessage);
                 } else {
-                    return FutureUtils.completedExceptionally(
-                            new RuntimeException(expectedErrorMessage));
+                    throw new RuntimeException(expectedErrorMessage);
                 }
             }
         }
