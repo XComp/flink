@@ -383,8 +383,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         try {
             FileSystem fs = stagingDir.getFileSystem();
             Preconditions.checkState(
-                    fs.exists(stagingDir) || fs.mkdirs(stagingDir),
-                    "Failed to create staging dir " + stagingDir);
+                    fs.mkdirs(stagingDir), "Failed to create staging dir " + stagingDir);
             return stagingDir;
         } catch (IOException e) {
             throw new RuntimeException(e);
