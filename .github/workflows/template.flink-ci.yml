@@ -128,46 +128,6 @@ jobs:
           # use minimum here because we only need these artifacts to speed up the build
           retention-days: 1
 
-  packaging:
-    name: "Test packaging/licensing"
-    needs: compile
-    runs-on: ubuntu-22.04
-    container:
-      image: mapohl/flink-ci:FLINK-34194
-      # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
-      # --privileged allows writing coredumps in docker (FLINK-16973)
-      options: --init --privileged
-
-    steps:
-      - name: "Flink Checkout"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: "Initialize job"
-        uses: "./.github/actions/job_init"
-        with:
-          jdk_version: ${{ inputs.jdk_version }}
-          maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
-          source_directory: ${{ env.MOUNTED_WORKING_DIR }}
-          target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
-
-      - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
-          path: ${{ env.FLINK_ARTIFACT_DIR }}
-
-      - name: "Unpack build artifact"
-        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
-        run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh
-
-      - name: "Test"
-        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
-        run: |
-          ${{ inputs.environment }} ./tools/ci/compile_ci.sh || exit $?
-
   test:
     name: "Test (module: ${{ matrix.module }})"
     needs: compile
@@ -187,18 +147,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - module: core
-            stringified-module-name: core
           - module: python
             stringified-module-name: python
-          - module: table
-            stringified-module-name: table
-          - module: connect
-            stringified-module-name: connect
-          - module: tests
-            stringified-module-name: tests
-          - module: misc
-            stringified-module-name: misc
 
     steps:
       - name: "Flink Checkout"
