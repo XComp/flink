@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -373,7 +374,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         };
     }
 
-    private Path toStagingPath() {
+    @VisibleForTesting
+    Path toStagingPath() {
         // Add a random UUID to prevent multiple sinks from sharing the same staging dir.
         // Please see FLINK-29114 for more details
         Path stagingDir =
