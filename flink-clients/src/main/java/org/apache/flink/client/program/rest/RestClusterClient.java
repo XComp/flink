@@ -133,6 +133,7 @@ import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.CheckedSupplier;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -1121,14 +1122,15 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                             } catch (IOException e) {
                                                 throw new CompletionException(e);
                                             }
-                                        }),
+                                        })
+                                .get(),
                 retryPredicate);
     }
 
     private <C> CompletableFuture<C> retry(
-            CheckedSupplier<CompletableFuture<C>> operation, Predicate<Throwable> retryPredicate) {
-        return FutureUtils.retryWithDelay(
-                CheckedSupplier.unchecked(operation),
+            SupplierWithException<C, Exception> operation, Predicate<Throwable> retryPredicate) {
+        return FutureUtils.retryOnError(
+                operation,
                 new FixedRetryStrategy(
                         restClusterClientConfiguration.getRetryMaxAttempts(),
                         Duration.ofMillis(restClusterClientConfiguration.getRetryDelay())),

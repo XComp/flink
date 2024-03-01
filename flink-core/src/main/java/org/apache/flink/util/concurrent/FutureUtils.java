@@ -125,7 +125,11 @@ public class FutureUtils {
             final SupplierWithException<T, E> operation,
             final int retries,
             final Executor executor) {
-        return retry(operation, retries, ignore -> true, executor);
+        return retry(
+                () -> FutureUtils.supplyAsync(operation, executor),
+                retries,
+                Predicates.alwaysTrue(),
+                executor);
     }
 
     /**
@@ -141,6 +145,29 @@ public class FutureUtils {
      */
     public static <T, E extends Throwable> CompletableFuture<T> retry(
             final SupplierWithException<T, E> operation,
+            final int retries,
+            final Predicate<Throwable> retryPredicate,
+            final Executor executor) {
+        return retry(
+                () -> FutureUtils.supplyAsync(operation, executor),
+                retries,
+                retryPredicate,
+                executor);
+    }
+
+    /**
+     * Retry the given operation the given number of times in case of a failure only when an
+     * exception is retryable.
+     *
+     * @param operation to executed
+     * @param retries if the operation failed
+     * @param retryPredicate Predicate to test whether an exception is retryable
+     * @param executor to use to run the futures
+     * @param <T> type of the result
+     * @return Future containing either the result of the operation or a {@link RetryException}
+     */
+    public static <T> CompletableFuture<T> retry(
+            final Supplier<CompletableFuture<T>> operation,
             final int retries,
             final Predicate<Throwable> retryPredicate,
             final Executor executor) {
@@ -169,25 +196,6 @@ public class FutureUtils {
                                         otherError)),
                 executor);
         return resultFuture;
-    }
-
-    /**
-     * Retry the given operation with the given delay in between failures.
-     *
-     * @param operation to retry
-     * @param retryStrategy the RetryStrategy
-     * @param retryPredicate Predicate to test whether an exception is retryable
-     * @param scheduledExecutor executor to be used for the retry operation
-     * @param <T> type of the result
-     * @return Future which retries the given operation a given amount of times and delays the retry
-     *     in case of failures
-     */
-    public static <T, E extends Throwable> CompletableFuture<T> retryWithDelay(
-            final SupplierWithException<T, E> operation,
-            final RetryStrategy retryStrategy,
-            final Predicate<Throwable> retryPredicate,
-            final ScheduledExecutor scheduledExecutor) {
-        return retryOnError(operation, retryStrategy, retryPredicate, scheduledExecutor);
     }
 
     /**
@@ -238,6 +246,32 @@ public class FutureUtils {
             final RetryStrategy retryStrategy,
             final Predicate<Throwable> retryPredicate,
             final ScheduledExecutor scheduledExecutor) {
+        return retryOnError(
+                () -> FutureUtils.supplyAsync(operation, scheduledExecutor),
+                retryStrategy,
+                retryPredicate,
+                scheduledExecutor);
+    }
+
+    public static <T> CompletableFuture<T> retryOnAnyError(
+            final Supplier<CompletableFuture<T>> operation,
+            final RetryStrategy retryStrategy,
+            final ScheduledExecutor scheduledExecutor) {
+        return retryWithReturnValue(
+                resultFuture ->
+                        retryOnError(
+                                resultFuture,
+                                operation,
+                                retryStrategy,
+                                Predicates.alwaysTrue(),
+                                scheduledExecutor));
+    }
+
+    public static <T> CompletableFuture<T> retryOnError(
+            final Supplier<CompletableFuture<T>> operation,
+            final RetryStrategy retryStrategy,
+            final Predicate<Throwable> retryPredicate,
+            final ScheduledExecutor scheduledExecutor) {
         return retryWithReturnValue(
                 resultFuture ->
                         retryOnError(
@@ -248,9 +282,9 @@ public class FutureUtils {
                                 scheduledExecutor));
     }
 
-    private static <T, E extends Throwable> void retryOnError(
+    private static <T> void retryOnError(
             final CompletableFuture<T> resultFuture,
-            final SupplierWithException<T, E> operation,
+            final Supplier<CompletableFuture<T>> operation,
             final RetryStrategy retryStrategy,
             final Predicate<Throwable> retryPredicate,
             final ScheduledExecutor scheduledExecutor) {
@@ -287,6 +321,18 @@ public class FutureUtils {
             final RetryStrategy retryStrategy,
             final Predicate<T> acceptancePredicate,
             final ScheduledExecutor scheduledExecutor) {
+        return retryOnSuccess(
+                () -> FutureUtils.supplyAsync(operation, scheduledExecutor),
+                retryStrategy,
+                acceptancePredicate,
+                scheduledExecutor);
+    }
+
+    public static <T> CompletableFuture<T> retryOnSuccess(
+            final Supplier<CompletableFuture<T>> operation,
+            final RetryStrategy retryStrategy,
+            final Predicate<T> acceptancePredicate,
+            final ScheduledExecutor scheduledExecutor) {
         return retryWithReturnValue(
                 resultFuture ->
                         retryOnSuccess(
@@ -297,9 +343,9 @@ public class FutureUtils {
                                 scheduledExecutor));
     }
 
-    private static <T, E extends Throwable> void retryOnSuccess(
+    private static <T> void retryOnSuccess(
             final CompletableFuture<T> resultFuture,
-            final SupplierWithException<T, E> operation,
+            final Supplier<CompletableFuture<T>> operation,
             final RetryStrategy retryStrategy,
             final Predicate<T> acceptancePredicate,
             final ScheduledExecutor scheduledExecutor) {
@@ -398,7 +444,7 @@ public class FutureUtils {
     @VisibleForTesting
     static <T, E extends Throwable> void retry(
             CompletableFuture<T> resultFuture,
-            SupplierWithException<T, E> operation,
+            Supplier<CompletableFuture<T>> operation,
             Predicate<T> successPredicate,
             Consumer<T> positiveSuccessConsumer,
             Consumer<T> negativeSuccessConsumer,
@@ -407,8 +453,7 @@ public class FutureUtils {
             Consumer<Throwable> negativeErrorConsumer,
             Executor executor) {
         if (!resultFuture.isDone()) {
-            final CompletableFuture<T> operationResultFuture =
-                    FutureUtils.supplyAsync(operation, executor);
+            final CompletableFuture<T> operationResultFuture = operation.get();
 
             final CompletableFuture<T> schedulingFuture =
                     operationResultFuture.whenCompleteAsync(

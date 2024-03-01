@@ -201,7 +201,7 @@ public class DefaultResourceCleaner<T> implements ResourceCleaner {
     }
 
     private CompletableFuture<Void> withRetry(JobID jobId, String label, T cleanup) {
-        return FutureUtils.retryWithDelay(
+        return FutureUtils.retryOnAnyError(
                 () ->
                         cleanupFn
                                 .cleanupAsync(cleanup, jobId, cleanupExecutor)

@@ -294,7 +294,7 @@ class FutureUtilsTest {
         }
 
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryWithDelay(
+                FutureUtils.retryOnError(
                         new TestStringSupplier(),
                         new FixedRetryStrategy(1, Duration.ZERO),
                         throwable ->

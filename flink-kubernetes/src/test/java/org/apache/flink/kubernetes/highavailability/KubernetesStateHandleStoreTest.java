@@ -1076,19 +1076,15 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
         final AtomicInteger callbackInvocationCount = new AtomicInteger(0);
         final CompletableFuture<Boolean> result =
                 FutureUtils.retry(
-                        () ->
-                                CompletableFuture.supplyAsync(
-                                        () -> {
-                                            callbackInvocationCount.incrementAndGet();
-                                            function.apply(leaderConfigMap);
-                                            if (callbackInvocationCount.get() == 1) {
-                                                throw new KubernetesClientException(
-                                                        "Expected exception to simulate unstable "
-                                                                + "kubernetes client operation");
-                                            }
-                                            return true;
-                                        },
-                                        Executors.newDirectExecutorService()),
+                        () -> {
+                            callbackInvocationCount.incrementAndGet();
+                            function.apply(leaderConfigMap);
+                            if (callbackInvocationCount.get() == 1) {
+                                throw new KubernetesClientException(
+                                        "Expected exception to simulate unstable kubernetes client operation");
+                            }
+                            return true;
+                        },
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES
                                 .defaultValue(),
                         t ->

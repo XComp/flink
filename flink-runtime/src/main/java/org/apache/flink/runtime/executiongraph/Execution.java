@@ -59,6 +59,8 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.apache.flink.shaded.guava31.com.google.common.base.Predicates;
+
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -1266,6 +1268,7 @@ public class Execution
                     FutureUtils.retry(
                             () -> taskManagerGateway.cancelTask(attemptId, rpcTimeout),
                             numberRetries,
+                            Predicates.alwaysTrue(),
                             jobMasterMainThreadExecutor);
 
             cancelResultFuture.whenComplete(
