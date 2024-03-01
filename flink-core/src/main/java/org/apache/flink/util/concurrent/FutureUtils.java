@@ -44,6 +44,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -151,17 +152,16 @@ public class FutureUtils {
                 resultFuture::complete,
                 FutureUtils::throwUnsupportedOperationException,
                 retryPredicate,
-                retryableError -> {
-                    if (retries > 0) {
-                        retry(operation, retries - 1, retryPredicate, executor);
-                    } else {
-                        resultFuture.completeExceptionally(
-                                new RetryException(
-                                        "Could not complete the operation. Number of retries "
-                                                + "has been exhausted.",
-                                        retryableError));
-                    }
-                },
+                retryableError ->
+                        triggerRetry(
+                                resultFuture,
+                                () -> retry(operation, retries - 1, retryPredicate, executor),
+                                () -> retries > 0,
+                                () ->
+                                        new RetryException(
+                                                "Could not complete the operation. Number of retries "
+                                                        + "has been exhausted.",
+                                                retryableError)),
                 otherError ->
                         resultFuture.completeExceptionally(
                                 new RetryException(
@@ -261,30 +261,23 @@ public class FutureUtils {
                 resultFuture::complete,
                 FutureUtils::throwUnsupportedOperationException,
                 retryPredicate,
-                error -> {
-                    // TODO: the interface should be changed to a normal boolean check
-                    if (retryStrategy.getNumRemainingRetries() > 0) {
-                        final ScheduledFuture<?> scheduledFuture =
-                                scheduledExecutor.schedule(
-                                        () ->
-                                                retryOnError(
-                                                        resultFuture,
-                                                        operation,
-                                                        retryStrategy.getNextRetryStrategy(),
-                                                        retryPredicate,
-                                                        scheduledExecutor),
-                                        retryStrategy.getRetryDelay().toMillis(),
-                                        TimeUnit.MILLISECONDS);
-
-                        resultFuture.whenComplete(
-                                (innerT, innerThrowable) -> scheduledFuture.cancel(false));
-                    } else {
-                        resultFuture.completeExceptionally(
-                                new RetryException(
-                                        "Could not complete the operation. Number of retries has been exhausted.",
-                                        error));
-                    }
-                },
+                error ->
+                        rescheduleWithDelay(
+                                resultFuture,
+                                () ->
+                                        retryOnError(
+                                                resultFuture,
+                                                operation,
+                                                retryStrategy.getNextRetryStrategy(),
+                                                retryPredicate,
+                                                scheduledExecutor),
+                                () -> retryStrategy.getNumRemainingRetries() > 0,
+                                () ->
+                                        new RetryException(
+                                                "Could not complete the operation. Number of retries has been exhausted.",
+                                                error),
+                                retryStrategy.getRetryDelay(),
+                                scheduledExecutor),
                 resultFuture::completeExceptionally,
                 scheduledExecutor);
     }
@@ -315,30 +308,24 @@ public class FutureUtils {
                 operation,
                 acceptancePredicate,
                 resultFuture::complete,
-                value -> {
-                    if (retryStrategy.getNumRemainingRetries() > 0) {
-                        final ScheduledFuture<?> scheduledFuture =
-                                scheduledExecutor.schedule(
-                                        () ->
-                                                retryOnSuccess(
-                                                        resultFuture,
-                                                        operation,
-                                                        retryStrategy.getNextRetryStrategy(),
-                                                        acceptancePredicate,
-                                                        scheduledExecutor),
-                                        retryStrategy.getRetryDelay().toMillis(),
-                                        TimeUnit.MILLISECONDS);
-
-                        resultFuture.whenComplete(
-                                (innerT, innerThrowable) -> scheduledFuture.cancel(false));
-                    } else {
-                        resultFuture.completeExceptionally(
-                                new RetryException(
-                                        "Could not satisfy the predicate within the allowed time (last retrieved value: "
-                                                + value
-                                                + ")."));
-                    }
-                },
+                value ->
+                        rescheduleWithDelay(
+                                resultFuture,
+                                () ->
+                                        retryOnSuccess(
+                                                resultFuture,
+                                                operation,
+                                                retryStrategy.getNextRetryStrategy(),
+                                                acceptancePredicate,
+                                                scheduledExecutor),
+                                () -> retryStrategy.getNumRemainingRetries() > 0,
+                                () ->
+                                        new RetryException(
+                                                String.format(
+                                                        "Could not satisfy the predicate within the allowed time (last retrieved value: %s).",
+                                                        value)),
+                                retryStrategy.getRetryDelay(),
+                                scheduledExecutor),
                 Predicates.alwaysTrue(),
                 resultFuture::completeExceptionally,
                 FutureUtils::throwUnsupportedOperationException,
@@ -354,6 +341,58 @@ public class FutureUtils {
 
     private static <T> void throwUnsupportedOperationException(T ignoredValue) {
         throw new UnsupportedOperationException("This code branch should never be called.");
+    }
+
+    /**
+     * Triggers a delayed retry of the past {@code operation}.
+     *
+     * @param resultFuture The future that will trigger the cancellation of the retry if it is
+     *     completed.
+     * @param operationToSchedule The operation that shall be retried.
+     * @param shouldRetry Callback for deciding whether a retry is advised.
+     * @param retryAbortErrorProvider A error provider for the case where the retry shouldn't be
+     *     triggered.
+     * @param delay The delay at which the operation will be triggered again.
+     * @param scheduledExecutor The {@code ScheduledExecutor} that's used for the scheduling.
+     */
+    private static void rescheduleWithDelay(
+            CompletableFuture<?> resultFuture,
+            Runnable operationToSchedule,
+            Supplier<Boolean> shouldRetry,
+            Supplier<RetryException> retryAbortErrorProvider,
+            Duration delay,
+            ScheduledExecutor scheduledExecutor) {
+        triggerRetry(
+                resultFuture,
+                () ->
+                        scheduledExecutor.schedule(
+                                operationToSchedule, delay.toMillis(), TimeUnit.MILLISECONDS),
+                shouldRetry,
+                retryAbortErrorProvider);
+    }
+
+    /**
+     * Triggers a retry of the past {@code retryOperation}, handles the abort and retry exhaustion.
+     *
+     * @param resultFuture The future that will trigger the cancellation of the retry if it is
+     *     completed.
+     * @param retryOperation The operation that shall be retried.
+     * @param shouldRetry Callback for deciding whether a retry is advised.
+     * @param retryAbortErrorProvider A error provider for the case where the retry shouldn't be
+     *     triggered.
+     */
+    private static void triggerRetry(
+            CompletableFuture<?> resultFuture,
+            Supplier<Future<?>> retryOperation,
+            Supplier<Boolean> shouldRetry,
+            Supplier<RetryException> retryAbortErrorProvider) {
+        if (shouldRetry.get()) {
+            final Future<?> retryFuture = retryOperation.get();
+
+            resultFuture.whenComplete((innerT, innerThrowable) -> retryFuture.cancel(false));
+        } else {
+            resultFuture.completeExceptionally(retryAbortErrorProvider.get());
+        }
     }
 
     @VisibleForTesting
