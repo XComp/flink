@@ -18,7 +18,6 @@
 
 package org.apache.flink.util.concurrent;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -39,9 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -117,18 +114,6 @@ class FutureUtilsRetryTest {
         };
     }
 
-    private void waitForOperationBeingTriggeredOnce()
-            throws InterruptedException, TimeoutException {
-        waitForOperationBeingCalled(1);
-    }
-
-    private void waitForOperationBeingCalled(int expectedCallCount)
-            throws InterruptedException, TimeoutException {
-        CommonTestUtils.waitUtil(
-                () -> callCount.get() == expectedCallCount,
-                TestingUtils.infiniteDuration(),
-                "Eventually, the operation should have been called.");
-    }
     /* ********************************************
      * retryOnSuccess
      */
@@ -192,70 +177,6 @@ class FutureUtilsRetryTest {
         assertThat(callCount.get()).isEqualTo(numberOfRetries + 1);
     }
 
-    @Test
-    void testCancelRetryOnSuccessWithoutRetry() throws InterruptedException, TimeoutException {
-        final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(10);
-        final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnSuccess(
-                        createOperation(eventQueue),
-                        retriesForever(),
-                        createSuccessPredicate(),
-                        createExecutor());
-
-        CommonTestUtils.waitUtil(
-                () -> callCount.get() == 1,
-                TestingUtils.infiniteDuration(),
-                "Eventually, the operation should have been called.");
-        assertThat(resultFuture).isNotDone();
-
-        resultFuture.cancel(false);
-
-        eventQueue.add(FINAL_RESULT);
-        assertThat(callCount.get()).as("No second call should have been triggered.").isOne();
-    }
-
-    @Test
-    void testCancelRetryOnSuccessWithRetry() throws InterruptedException, TimeoutException {
-        final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(10);
-        eventQueue.add(INTERMEDIATE_RESULT_CAUSING_RETRY);
-        final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnSuccess(
-                        createOperation(eventQueue),
-                        retriesForever(),
-                        createSuccessPredicate(),
-                        createExecutor());
-
-        CommonTestUtils.waitUtil(
-                () -> callCount.get() == 2,
-                TestingUtils.infiniteDuration(),
-                "Eventually, the operation should have been called.");
-        assertThat(resultFuture).isNotDone();
-
-        resultFuture.cancel(false);
-
-        eventQueue.add(FINAL_RESULT);
-        assertThat(callCount.get()).as("No third call should have been triggered.").isEqualTo(2);
-    }
-
-    @Test
-    void testRetryOnSuccessWithResultFutureBeingCompleted()
-            throws InterruptedException, TimeoutException {
-        final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(10);
-        final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnSuccess(
-                        createOperation(eventQueue),
-                        retriesForever(),
-                        createSuccessPredicate(),
-                        createExecutor());
-
-        waitForOperationBeingTriggeredOnce();
-        assertThat(resultFuture).isNotDone();
-        resultFuture.complete("random-value");
-
-        eventQueue.add(FINAL_RESULT);
-        assertThat(callCount.get()).as("No second call should have been triggered.").isOne();
-    }
-
     /* ********************************************
      * retryOnError
      */
@@ -317,62 +238,12 @@ class FutureUtilsRetryTest {
         assertThat(callCount.get()).isEqualTo(2);
     }
 
-    @Test
-    void testCancelRetryOnErrorWithoutRetry() throws InterruptedException, TimeoutException {
-        final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(10);
-        final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
-                        createOperation(eventQueue),
-                        retriesForever(),
-                        createErrorPredicate(),
-                        createExecutor());
-
-        waitForOperationBeingTriggeredOnce();
-        assertThat(resultFuture).isNotDone();
-        resultFuture.cancel(false);
-
-        eventQueue.add(FINAL_RESULT);
-        assertThat(callCount.get()).as("No second call should have been triggered.").isOne();
-    }
-
-    @Test
-    void testCancelRetryOnErrorWithRetry() throws InterruptedException, TimeoutException {
-        final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(10);
-        eventQueue.add(EXCEPTION_CAUSING_RETRY);
-        final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
-                        createOperation(eventQueue),
-                        retriesForever(),
-                        createErrorPredicate(),
-                        createExecutor());
-
-        waitForOperationBeingCalled(2);
-        assertThat(resultFuture).isNotDone();
-        resultFuture.cancel(false);
-
-        eventQueue.add(FINAL_RESULT);
-        assertThat(callCount.get()).as("No third call should have been triggered.").isEqualTo(2);
-    }
-
-    @Test
-    void testRetryOnErrorWithResultFutureBeingCompleted()
-            throws InterruptedException, TimeoutException {
-        final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(10);
-        final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
-                        createOperation(eventQueue),
-                        retriesForever(),
-                        createErrorPredicate(),
-                        createExecutor());
-
-        waitForOperationBeingTriggeredOnce();
-        assertThat(resultFuture).isNotDone();
-        resultFuture.complete("random-value");
-
-        eventQueue.add(FINAL_RESULT);
-        assertThat(callCount.get()).as("No second call should have been triggered.").isOne();
-    }
-
+    /* ********************************************
+     * FutureUtils#retry
+     *
+     * The following tests should cover the error handling. This should reduce the amount
+     * of tests for public scheduling/retry methods that are based on FutureUtils#retry.
+     */
     @Test
     void testRetryPositiveSuccess() {
         final int expectedValue = 1337;
