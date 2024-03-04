@@ -124,11 +124,7 @@ public class FutureUtils {
             final SupplierWithException<T, E> operation,
             final int retries,
             final Executor executor) {
-        return retry(
-                () -> FutureUtils.supplyAsync(operation, executor),
-                retries,
-                Predicates.alwaysTrue(),
-                executor);
+        return retry(operation, retries, Predicates.alwaysTrue(), executor);
     }
 
     /**
@@ -171,29 +167,37 @@ public class FutureUtils {
             final Predicate<Throwable> errorClassifier,
             final Executor executor) {
         return retryWithReturnValue(
-                resultFuture ->
-                        handleOperation(
-                                resultFuture,
-                                operation,
-                                Predicates.alwaysTrue(),
-                                resultFuture::complete,
-                                FutureUtils::throwUnsupportedOperationException,
-                                errorClassifier,
-                                retryableError -> {
-                                    if (retries > 0) {
-                                        retry(operation, retries - 1, errorClassifier, executor);
-                                    } else {
-                                        resultFuture.completeExceptionally(
-                                                new RetryException(
-                                                        "Could not complete the operation: The number of retries has been exhausted."));
-                                    }
-                                },
-                                otherError ->
-                                        resultFuture.completeExceptionally(
-                                                new RetryException(
-                                                        "Stopped retrying the operation because the error is not retryable.",
-                                                        otherError)),
-                                executor));
+                resultFuture -> retry(resultFuture, operation, retries, errorClassifier, executor));
+    }
+
+    public static <T> void retry(
+            final CompletableFuture<T> resultFuture,
+            final Supplier<CompletableFuture<T>> operation,
+            final int retries,
+            final Predicate<Throwable> errorClassifier,
+            final Executor executor) {
+        handleOperation(
+                resultFuture,
+                operation,
+                Predicates.alwaysTrue(),
+                resultFuture::complete,
+                FutureUtils::throwUnsupportedOperationException,
+                errorClassifier,
+                retryableError -> {
+                    if (retries > 0) {
+                        retry(resultFuture, operation, retries - 1, errorClassifier, executor);
+                    } else {
+                        resultFuture.completeExceptionally(
+                                new RetryException(
+                                        "Could not complete the operation: The number of retries has been exhausted."));
+                    }
+                },
+                otherError ->
+                        resultFuture.completeExceptionally(
+                                new RetryException(
+                                        "Stopped retrying the operation because the error is not retryable.",
+                                        otherError)),
+                executor);
     }
 
     public static <T, E extends Throwable>
@@ -515,7 +519,7 @@ public class FutureUtils {
         if (!resultFuture.isDone()) {
             final CompletableFuture<T> operationResultFuture = operation.get();
 
-            final CompletableFuture<T> schedulingFuture =
+            final CompletableFuture<T> resultHandlingFuture =
                     operationResultFuture.whenCompleteAsync(
                             (value, throwable) -> {
                                 if (throwable != null) {
@@ -554,7 +558,7 @@ public class FutureUtils {
                         }
 
                         operationResultFuture.cancel(false);
-                        schedulingFuture.cancel(false);
+                        resultHandlingFuture.cancel(false);
                     });
         }
     }

@@ -89,9 +89,9 @@ class FutureUtilsTest {
 
         CompletableFuture<?> retryFuture =
                 FutureUtils.retry(
-                        () ->
-                                FutureUtils.completedExceptionally(
-                                        new FlinkException("Test exception")),
+                        () -> {
+                            throw new FlinkException("Test exception");
+                        },
                         retries,
                         EXECUTOR_RESOURCE.getExecutor());
 
@@ -111,22 +111,18 @@ class FutureUtilsTest {
 
         CompletableFuture<?> retryFuture =
                 FutureUtils.retry(
-                        () ->
-                                CompletableFuture.supplyAsync(
-                                        () -> {
-                                            if (atomicInteger.incrementAndGet() == 2) {
-                                                notificationLatch.trigger();
-                                                try {
-                                                    waitLatch.await();
-                                                } catch (InterruptedException e) {
-                                                    atomicThrowable.compareAndSet(null, e);
-                                                }
-                                            }
+                        () -> {
+                            if (atomicInteger.incrementAndGet() == 2) {
+                                notificationLatch.trigger();
+                                try {
+                                    waitLatch.await();
+                                } catch (InterruptedException e) {
+                                    atomicThrowable.compareAndSet(null, e);
+                                }
+                            }
 
-                                            throw new CompletionException(
-                                                    new FlinkException("Test exception"));
-                                        },
-                                        EXECUTOR_RESOURCE.getExecutor()),
+                            throw new FlinkException("Test exception");
+                        },
                         retries,
                         EXECUTOR_RESOURCE.getExecutor());
 
@@ -160,14 +156,11 @@ class FutureUtilsTest {
                 new FlinkRuntimeException("Non-retryable exception");
         CompletableFuture<Boolean> retryFuture =
                 FutureUtils.retry(
-                        () -> {
-                            if (atomicInteger.incrementAndGet() == notRetry) {
-                                // throw non-retryable exception
-                                throw new CompletionException(nonRetryableException);
-                            } else {
-                                throw new CompletionException(new FlinkException("Test exception"));
-                            }
-                        },
+                        () ->
+                                FutureUtils.completedExceptionally(
+                                        atomicInteger.incrementAndGet() == notRetry
+                                                ? nonRetryableException
+                                                : new FlinkException("Test exception")),
                         retries,
                         throwable ->
                                 ExceptionUtils.findThrowable(throwable, FlinkException.class)
@@ -187,9 +180,9 @@ class FutureUtilsTest {
     void testRetryWithDelayRetryStrategyFailure() {
         CompletableFuture<?> retryFuture =
                 FutureUtils.runImmediatelyWithScheduledRetryOnError(
-                        () ->
-                                FutureUtils.completedExceptionally(
-                                        new FlinkException("Test exception")),
+                        () -> {
+                            throw new FlinkException("Test exception");
+                        },
                         new FixedRetryStrategy(3, Duration.ofMillis(1L)),
                         Predicates.alwaysTrue(),
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
@@ -241,14 +234,24 @@ class FutureUtilsTest {
 
         CompletableFuture<?> retryFuture =
                 FutureUtils.runImmediatelyWithScheduledRetryOnError(
-                        () ->
-                                FutureUtils.completedExceptionally(
-                                        new FlinkException("Test exception")),
+                        () -> {
+                            throw new FlinkException("Test exception");
+                        },
                         new FixedRetryStrategy(1, TestingUtils.infiniteDuration()),
                         Predicates.alwaysTrue(),
                         scheduledExecutor);
 
         assertThat(retryFuture).isNotDone();
+
+        assertThat(scheduledExecutor.numQueuedRunnables())
+                .as("The initial operation call should have been scheduled.")
+                .isOne();
+        scheduledExecutor.trigger();
+
+        assertThat(scheduledExecutor.numQueuedRunnables())
+                .as("The initial result handling should have been scheduled..")
+                .isOne();
+        scheduledExecutor.trigger();
 
         final Collection<ScheduledFuture<?>> scheduledTasks =
                 scheduledExecutor.getActiveScheduledTasks();
