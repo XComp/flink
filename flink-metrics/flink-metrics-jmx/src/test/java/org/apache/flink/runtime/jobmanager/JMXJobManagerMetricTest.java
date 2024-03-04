@@ -37,6 +37,7 @@ import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -104,10 +105,9 @@ class JMXJobManagerMetricTest {
 
             client.submitJob(jobGraph).get();
 
-            FutureUtils.retrySuccessfulWithDelay(
+            FutureUtils.scheduleAsyncOperationOnSuccess(
                             () -> client.getJobStatus(jobGraph.getJobID()),
-                            Duration.ofMillis(10),
-                            deadline,
+                            new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(10)),
                             status -> status == JobStatus.RUNNING,
                             new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                     .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);

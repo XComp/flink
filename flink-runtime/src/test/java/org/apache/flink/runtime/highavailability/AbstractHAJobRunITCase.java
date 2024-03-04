@@ -32,6 +32,7 @@ import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -93,10 +94,9 @@ public abstract class AbstractHAJobRunITCase {
 
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
         final JobStatus jobStatus =
-                FutureUtils.retrySuccessfulWithDelay(
+                FutureUtils.scheduleAsyncOperationOnSuccess(
                                 () -> flinkCluster.getJobStatus(jobGraph.getJobID()),
-                                Duration.ofMillis(10),
-                                deadline,
+                                new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(10)),
                                 status -> flinkCluster.isRunning() && status == JobStatus.FINISHED,
                                 new ScheduledExecutorServiceAdapter(
                                         EXECUTOR_RESOURCE.getExecutor()))

@@ -244,7 +244,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public CompletableFuture<KubernetesWatch> watchPodsAndDoCallback(
             Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
-        return FutureUtils.retryOnError(
+        return FutureUtils.runImmediatelyWithScheduledRetryOnError(
                 () ->
                         new KubernetesWatch(
                                 this.internalClient

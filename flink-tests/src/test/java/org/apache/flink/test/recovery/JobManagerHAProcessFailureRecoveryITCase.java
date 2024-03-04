@@ -58,6 +58,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -77,6 +78,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.api.common.time.Deadline.fromNow;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -268,7 +270,7 @@ class JobManagerHAProcessFailureRecoveryITCase {
                 RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
 
         try {
-            final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);
+            final Deadline deadline = fromNow(TEST_TIMEOUT);
 
             // Coordination directory
             coordinateTempDir = TempDirUtils.newFolder(tempDir);
@@ -428,13 +430,13 @@ class JobManagerHAProcessFailureRecoveryITCase {
     private void waitForTaskManagers(
             int numberOfTaskManagers, DispatcherGateway dispatcherGateway, Duration timeLeft)
             throws ExecutionException, InterruptedException {
-        FutureUtils.retrySuccessfulWithDelay(
+        FutureUtils.scheduleAsyncOperationOnSuccess(
                         () ->
                                 dispatcherGateway.requestClusterOverview(
                                         Time.milliseconds(timeLeft.toMillis())),
-                        Duration.ofMillis(50L),
-                        org.apache.flink.api.common.time.Deadline.fromNow(
-                                Duration.ofMillis(timeLeft.toMillis())),
+                        new DeadlineBasedRetryStrategy(
+                                fromNow(Duration.ofMillis(timeLeft.toMillis())),
+                                Duration.ofMillis(50L)),
                         clusterOverview ->
                                 clusterOverview.getNumTaskManagersConnected()
                                         >= numberOfTaskManagers,

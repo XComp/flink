@@ -27,6 +27,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.flink.shaded.guava31.com.google.common.base.Predicates;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -184,11 +186,12 @@ class FutureUtilsTest {
     @Test
     void testRetryWithDelayRetryStrategyFailure() {
         CompletableFuture<?> retryFuture =
-                FutureUtils.retryWithDelay(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         () ->
                                 FutureUtils.completedExceptionally(
                                         new FlinkException("Test exception")),
                         new FixedRetryStrategy(3, Duration.ofMillis(1L)),
+                        Predicates.alwaysTrue(),
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
         assertThatFuture(retryFuture)
@@ -208,7 +211,7 @@ class FutureUtilsTest {
         long start = System.currentTimeMillis();
 
         CompletableFuture<Boolean> retryFuture =
-                FutureUtils.retryWithDelay(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         () -> {
                             if (countDown.getAndDecrement() == 0) {
                                 return true;
@@ -218,6 +221,7 @@ class FutureUtilsTest {
                         },
                         new ExponentialBackoffRetryStrategy(
                                 retries, Duration.ofMillis(2L), Duration.ofMillis(5L)),
+                        Predicates.alwaysTrue(),
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
         assertThatFuture(retryFuture).eventuallySucceeds().isEqualTo(true);
@@ -236,11 +240,12 @@ class FutureUtilsTest {
                 new ManuallyTriggeredScheduledExecutor();
 
         CompletableFuture<?> retryFuture =
-                FutureUtils.retryWithDelay(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         () ->
                                 FutureUtils.completedExceptionally(
                                         new FlinkException("Test exception")),
                         new FixedRetryStrategy(1, TestingUtils.infiniteDuration()),
+                        Predicates.alwaysTrue(),
                         scheduledExecutor);
 
         assertThat(retryFuture).isNotDone();
@@ -294,7 +299,7 @@ class FutureUtilsTest {
         }
 
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         new TestStringSupplier(),
                         new FixedRetryStrategy(1, Duration.ZERO),
                         throwable ->

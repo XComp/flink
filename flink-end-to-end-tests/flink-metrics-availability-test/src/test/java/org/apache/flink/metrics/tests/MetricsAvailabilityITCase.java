@@ -37,6 +37,7 @@ import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.SupplierWithException;
@@ -161,16 +162,12 @@ public class MetricsAvailabilityITCase extends TestLogger {
             final Deadline deadline)
             throws InterruptedException, ExecutionException {
         final CompletableFuture<X> responseFuture =
-                FutureUtils.retrySuccessfulWithDelay(
+                FutureUtils.runImmediatelyWithScheduledRetryOnSuccess(
                         () -> {
-                            try {
-                                return clientOperation.get();
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
+                            final CompletableFuture<X> asyncOperationResult = clientOperation.get();
+                            return asyncOperationResult.get();
                         },
-                        Duration.ofMillis(100),
-                        deadline,
+                        new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(100)),
                         predicate,
                         new ScheduledExecutorServiceAdapter(scheduledExecutorService));
 

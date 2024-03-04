@@ -26,8 +26,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.RetryStrategy;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Predicates;
-
 import java.io.Serializable;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -61,16 +59,15 @@ public class RpcGatewayRetriever<F extends Serializable, T extends FencedRpcGate
     @Override
     protected CompletableFuture<T> createGateway(
             CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
-        return FutureUtils.retryOnError(
+        return FutureUtils.scheduleAsyncOperationOnError(
                 () ->
                         leaderFuture.thenCompose(
-                                (Tuple2<String, UUID> addressLeaderTuple) ->
+                                addressLeaderTuple ->
                                         rpcService.connect(
                                                 addressLeaderTuple.f0,
                                                 fencingTokenMapper.apply(addressLeaderTuple.f1),
                                                 gatewayType)),
                 retryStrategy,
-                Predicates.alwaysTrue(),
                 rpcService.getScheduledExecutor());
     }
 }

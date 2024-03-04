@@ -132,8 +132,6 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.util.function.CheckedSupplier;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -335,9 +333,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
-        final CheckedSupplier<CompletableFuture<JobStatus>> operation =
-                () -> requestJobStatus(jobId);
-        return retry(operation, unknownJobStateRetryable);
+        return retry(() -> requestJobStatus(jobId), unknownJobStateRetryable);
     }
 
     /**
@@ -350,9 +346,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
      */
     @Override
     public CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId) {
-        final CheckedSupplier<CompletableFuture<JobResult>> operation =
-                () -> requestJobResultInternal(jobId);
-        return retry(operation, unknownJobStateRetryable);
+        return retry(() -> requestJobResult(jobId), unknownJobStateRetryable);
     }
 
     @Override
@@ -1122,14 +1116,13 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                             } catch (IOException e) {
                                                 throw new CompletionException(e);
                                             }
-                                        })
-                                .get(),
+                                        }),
                 retryPredicate);
     }
 
     private <C> CompletableFuture<C> retry(
-            SupplierWithException<C, Exception> operation, Predicate<Throwable> retryPredicate) {
-        return FutureUtils.retryOnError(
+            Supplier<CompletableFuture<C>> operation, Predicate<Throwable> retryPredicate) {
+        return FutureUtils.scheduleAsyncOperationOnError(
                 operation,
                 new FixedRetryStrategy(
                         restClusterClientConfiguration.getRetryMaxAttempts(),

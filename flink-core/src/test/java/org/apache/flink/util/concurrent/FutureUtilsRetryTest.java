@@ -121,7 +121,7 @@ class FutureUtilsRetryTest {
     @Test
     void testRetryOnSuccessWithImmediateSuccessWithoutRetry() {
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnSuccess(
+                FutureUtils.runImmediatelyWithScheduledRetryOnSuccess(
                         createDirectEventOperation(FINAL_RESULT),
                         retriesForever(),
                         createSuccessPredicate(),
@@ -134,7 +134,7 @@ class FutureUtilsRetryTest {
     @Test
     void testRetryOnSuccessWithErrorWithoutRetry() {
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnSuccess(
+                FutureUtils.runImmediatelyWithScheduledRetryOnSuccess(
                         createDirectEventOperation(FINAL_EXCEPTION),
                         retriesForever(),
                         createSuccessPredicate(),
@@ -149,7 +149,7 @@ class FutureUtilsRetryTest {
     @Test
     void testRetryOnSuccessWithRetry() {
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnSuccess(
+                FutureUtils.runImmediatelyWithScheduledRetryOnSuccess(
                         createDirectEventOperation(INTERMEDIATE_RESULT_CAUSING_RETRY, FINAL_RESULT),
                         retriesForever(),
                         createSuccessPredicate(),
@@ -165,7 +165,7 @@ class FutureUtilsRetryTest {
         final Object[] events = new Object[numberOfRetries + 1];
         Arrays.fill(events, INTERMEDIATE_RESULT_CAUSING_RETRY);
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnSuccess(
+                FutureUtils.runImmediatelyWithScheduledRetryOnSuccess(
                         createDirectEventOperation(events),
                         retries(numberOfRetries),
                         createSuccessPredicate(),
@@ -184,7 +184,7 @@ class FutureUtilsRetryTest {
     @Test
     void testRetryOnErrorWithImmediateSuccessWithoutRetry() {
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         createDirectEventOperation(FINAL_RESULT),
                         retriesForever(),
                         createErrorPredicate(),
@@ -197,7 +197,7 @@ class FutureUtilsRetryTest {
     @Test
     void testRetryOnErrorWithErrorWithoutRetry() {
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         createDirectEventOperation(FINAL_EXCEPTION),
                         retriesForever(),
                         createErrorPredicate(),
@@ -212,7 +212,7 @@ class FutureUtilsRetryTest {
     @Test
     void testRetryOnErrorWithRetry() {
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         createDirectEventOperation(EXCEPTION_CAUSING_RETRY, FINAL_RESULT),
                         retriesForever(),
                         createErrorPredicate(),
@@ -225,7 +225,7 @@ class FutureUtilsRetryTest {
     @Test
     void testRetryOnErrorWithAbortedRetry() {
         final CompletableFuture<String> resultFuture =
-                FutureUtils.retryOnError(
+                FutureUtils.runImmediatelyWithScheduledRetryOnError(
                         createDirectEventOperation(
                                 EXCEPTION_CAUSING_RETRY, EXCEPTION_CAUSING_RETRY, FINAL_RESULT),
                         retries(1),
@@ -525,9 +525,9 @@ class FutureUtilsRetryTest {
                             // complete while handling the intermediate result
                             completeFuture.accept(resultFuture);
 
-                            FutureUtils.retry(
+                            FutureUtils.handleOperation(
                                     resultFuture,
-                                    operation,
+                                    () -> FutureUtils.supplyAsync(operation, executor),
                                     Predicates.alwaysTrue(),
                                     positiveSuccessConsumer::set,
                                     negativeSuccessConsumer::set,
@@ -588,9 +588,9 @@ class FutureUtilsRetryTest {
                 Predicate<Throwable> errorPredicate,
                 Runnable assertion,
                 Executor executor) {
-            FutureUtils.retry(
+            FutureUtils.handleOperation(
                     resultFuture,
-                    operation,
+                    () -> FutureUtils.supplyAsync(operation, executor),
                     successPredicate,
                     customPositiveSuccessConsumer,
                     negativeSuccessConsumer::set,

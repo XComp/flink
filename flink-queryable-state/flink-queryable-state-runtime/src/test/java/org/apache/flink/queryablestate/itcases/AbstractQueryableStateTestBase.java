@@ -64,6 +64,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -1323,11 +1324,10 @@ public abstract class AbstractQueryableStateTestBase {
             clusterClient.cancel(jobId).get();
             // cancel() is non-blocking so do this to make sure the job finished
             CompletableFuture<JobStatus> jobStatusFuture =
-                    FutureUtils.retrySuccessfulWithDelay(
+                    FutureUtils.scheduleAsyncOperationOnSuccess(
                             () -> clusterClient.getJobStatus(jobId),
-                            Duration.ofMillis(50),
-                            deadline,
-                            (jobStatus) -> jobStatus.equals(JobStatus.CANCELED),
+                            new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(50)),
+                            jobStatus -> jobStatus.equals(JobStatus.CANCELED),
                             new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()));
             assertThat(jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
                     .isEqualTo(JobStatus.CANCELED);

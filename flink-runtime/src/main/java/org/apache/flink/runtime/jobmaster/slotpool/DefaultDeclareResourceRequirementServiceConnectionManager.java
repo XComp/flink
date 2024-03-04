@@ -83,7 +83,7 @@ class DefaultDeclareResourceRequirementServiceConnectionManager
             Duration maxSleepOnError,
             ResourceRequirements resourceRequirementsToSend) {
 
-        FutureUtils.retryOnError(
+        FutureUtils.scheduleAsyncOperationOnError(
                 () -> sendResourceRequirements(resourceRequirementsToSend),
                 new ExponentialBackoffRetryStrategy(
                         Integer.MAX_VALUE, sleepOnError, maxSleepOnError),

@@ -46,6 +46,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -59,7 +60,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -178,12 +178,11 @@ public class AccumulatorLiveITCase extends TestLogger {
     private static void verifyResults(JobGraph jobGraph, Deadline deadline, ClusterClient<?> client)
             throws InterruptedException, java.util.concurrent.ExecutionException,
                     java.util.concurrent.TimeoutException {
-        FutureUtils.retrySuccessfulWithDelay(
+        FutureUtils.scheduleAsyncOperationOnSuccess(
                         () -> {
                             try {
                                 if (client != null) {
-                                    return CompletableFuture.completedFuture(
-                                            client.getAccumulators(jobGraph.getJobID()).get());
+                                    return client.getAccumulators(jobGraph.getJobID());
                                 } else {
                                     final MiniClusterJobClient miniClusterJobClient =
                                             new MiniClusterJobClient(
@@ -192,15 +191,13 @@ public class AccumulatorLiveITCase extends TestLogger {
                                                     ClassLoader.getSystemClassLoader(),
                                                     MiniClusterJobClient.JobFinalizationBehavior
                                                             .NOTHING);
-                                    return CompletableFuture.completedFuture(
-                                            miniClusterJobClient.getAccumulators().get());
+                                    return miniClusterJobClient.getAccumulators();
                                 }
                             } catch (Exception e) {
                                 return FutureUtils.completedExceptionally(e);
                             }
                         },
-                        Duration.ofMillis(20),
-                        deadline,
+                        new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(20)),
                         accumulators ->
                                 accumulators.size() == 1
                                         && accumulators.containsKey(ACCUMULATOR_NAME)

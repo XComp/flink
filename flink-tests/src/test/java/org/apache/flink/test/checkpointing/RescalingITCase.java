@@ -557,14 +557,13 @@ public class RescalingITCase extends TestLogger {
             StateSourceBase.workStartedLatch.await();
 
             CompletableFuture<String> savepointPathFuture =
-                    FutureUtils.retryOnError(
+                    FutureUtils.scheduleAsyncOperationOnError(
                             () ->
                                     client.triggerSavepoint(
                                             jobID, null, SavepointFormatType.CANONICAL),
                             new FixedRetryStrategy(
                                     (int) deadline.timeLeft().getSeconds() / 10,
                                     Duration.ofSeconds(10)),
-                            (throwable) -> true,
                             new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
             final String savepointPath =

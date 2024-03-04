@@ -39,6 +39,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -181,11 +182,10 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         clusterClient.submitJob(jobToMigrate).get();
 
         CompletableFuture<JobStatus> jobRunningFuture =
-                FutureUtils.retrySuccessfulWithDelay(
+                FutureUtils.scheduleAsyncOperationOnSuccess(
                         () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-                        Duration.ofMillis(50),
-                        deadline,
-                        (jobStatus) -> jobStatus == JobStatus.RUNNING,
+                        new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(50)),
+                        jobStatus -> jobStatus == JobStatus.RUNNING,
                         scheduledExecutor);
         assertEquals(
                 JobStatus.RUNNING,
@@ -220,11 +220,10 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         assertNotNull("Could not take savepoint.", savepointPath);
 
         CompletableFuture<JobStatus> jobCanceledFuture =
-                FutureUtils.retrySuccessfulWithDelay(
+                FutureUtils.scheduleAsyncOperationOnSuccess(
                         () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-                        Duration.ofMillis(50),
-                        deadline,
-                        (jobStatus) -> jobStatus == JobStatus.CANCELED,
+                        new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(50)),
+                        jobStatus -> jobStatus == JobStatus.CANCELED,
                         scheduledExecutor);
         assertEquals(
                 JobStatus.CANCELED,
@@ -244,11 +243,10 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         clusterClient.submitJob(jobToRestore).get();
 
         CompletableFuture<JobStatus> jobStatusFuture =
-                FutureUtils.retrySuccessfulWithDelay(
+                FutureUtils.scheduleAsyncOperationOnSuccess(
                         () -> clusterClient.getJobStatus(jobToRestore.getJobID()),
-                        Duration.ofMillis(50),
-                        deadline,
-                        (jobStatus) -> jobStatus == JobStatus.FINISHED,
+                        new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(50)),
+                        jobStatus -> jobStatus == JobStatus.FINISHED,
                         scheduledExecutor);
         assertEquals(
                 JobStatus.FINISHED,

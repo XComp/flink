@@ -45,6 +45,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -124,10 +125,9 @@ public class TaskCancelAsyncProducerConsumerITCase {
         // Submit job and wait until running
         flink.runDetached(jobGraph);
 
-        FutureUtils.retrySuccessfulWithDelay(
+        FutureUtils.scheduleAsyncOperationOnSuccess(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Duration.ofMillis(10),
-                        deadline,
+                        new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(10)),
                         status -> status == JobStatus.RUNNING,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
@@ -178,10 +178,9 @@ public class TaskCancelAsyncProducerConsumerITCase {
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         // wait until the job is canceled
-        FutureUtils.retrySuccessfulWithDelay(
+        FutureUtils.scheduleAsyncOperationOnSuccess(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Duration.ofMillis(10),
-                        deadline,
+                        new DeadlineBasedRetryStrategy(deadline, Duration.ofMillis(10)),
                         status -> status == JobStatus.CANCELED,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);

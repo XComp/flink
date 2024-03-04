@@ -23,7 +23,7 @@ import org.apache.flink.api.common.time.Deadline;
 import java.time.Duration;
 
 /** {@code DeadlineBasedRetryStrategy} implements {@link RetryStrategy} for a given deadline. */
-class DeadlineBasedRetryStrategy implements RetryStrategy {
+public class DeadlineBasedRetryStrategy implements RetryStrategy {
     private final Deadline deadline;
     private final Duration retryDelay;
 

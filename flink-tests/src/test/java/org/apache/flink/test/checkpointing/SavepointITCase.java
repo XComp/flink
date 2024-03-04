@@ -98,6 +98,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.DeadlineBasedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -709,10 +710,10 @@ public class SavepointITCase extends TestLogger {
 
             client.cancel(jobId).get();
 
-            FutureUtils.retrySuccessfulWithDelay(
+            FutureUtils.scheduleAsyncOperationOnSuccess(
                     () -> client.getJobStatus(jobId),
-                    Duration.ofMillis(50),
-                    Deadline.now().plus(Duration.ofSeconds(30)),
+                    new DeadlineBasedRetryStrategy(
+                            Deadline.fromNow(Duration.ofSeconds(30)), Duration.ofMillis(50)),
                     status -> status == JobStatus.CANCELED,
                     new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
