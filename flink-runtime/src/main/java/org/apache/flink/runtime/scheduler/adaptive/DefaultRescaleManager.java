@@ -103,6 +103,10 @@ public class DefaultRescaleManager implements RescaleManager {
         }
     }
 
+    @Override
+    public void onTrigger() {
+    }
+
     private Duration timeSinceLastRescale() {
         return Duration.between(this.initializationTime, clock.get());
     }
