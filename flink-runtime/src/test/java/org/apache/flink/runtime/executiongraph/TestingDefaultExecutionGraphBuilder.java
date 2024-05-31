@@ -179,6 +179,8 @@ public class TestingDefaultExecutionGraphBuilder {
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
                 checkpointIdCounter,
+                new CheckpointStatsTracker(
+                        0, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup()),
                 rpcTimeout,
                 blobWriter,
                 LOG,
@@ -192,11 +194,6 @@ public class TestingDefaultExecutionGraphBuilder {
                 new DefaultVertexAttemptNumberStore(),
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
-                () ->
-                        new CheckpointStatsTracker(
-                                0,
-                                UnregisteredMetricGroups
-                                        .createUnregisteredJobManagerJobMetricGroup()),
                 isDynamicGraph,
                 executionJobVertexFactory,
                 markPartitionFinishedStrategy,

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -328,6 +329,7 @@ public class AdaptiveScheduler
     private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
     private final CheckpointIDCounter checkpointIdCounter;
+    private final CheckpointStatsTracker checkpointStatsTracker;
 
     private final CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
 
@@ -419,6 +421,10 @@ public class AdaptiveScheduler
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkpointRecoveryFactory);
+        this.checkpointStatsTracker =
+                new CheckpointStatsTracker(
+                        configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                        jobManagerJobMetricGroup);
 
         this.slotAllocator = slotAllocator;
 
@@ -1293,6 +1299,7 @@ public class AdaptiveScheduler
                 completedCheckpointStore,
                 checkpointsCleaner,
                 checkpointIdCounter,
+                checkpointStatsTracker,
                 TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                 initializationTimestamp,
                 vertexAttemptNumberStore,
