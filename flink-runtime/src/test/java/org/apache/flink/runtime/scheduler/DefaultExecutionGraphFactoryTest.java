@@ -31,8 +31,10 @@ import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -48,6 +50,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -64,7 +67,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -91,7 +96,10 @@ class DefaultExecutionGraphFactoryTest {
     void testRestoringModifiedJobFromSavepointFails() throws Exception {
         final JobGraph jobGraphWithNewOperator = createJobGraphWithSavepoint(false, 42L, 1);
 
-        final ExecutionGraphFactory executionGraphFactory = createExecutionGraphFactory();
+        final JobManagerJobMetricGroup metricGroup =
+                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
+        final ExecutionGraphFactory executionGraphFactory =
+                createExecutionGraphFactory(metricGroup);
 
         assertThatThrownBy(
                         () ->
@@ -100,6 +108,7 @@ class DefaultExecutionGraphFactoryTest {
                                         new StandaloneCompletedCheckpointStore(1),
                                         new CheckpointsCleaner(),
                                         new StandaloneCheckpointIDCounter(),
+                                        new CheckpointStatsTracker(10, metricGroup),
                                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint
                                                 .CAN_BE_UNKNOWN,
                                         0L,
@@ -121,7 +130,10 @@ class DefaultExecutionGraphFactoryTest {
         final long savepointId = 42L;
         final JobGraph jobGraphWithNewOperator = createJobGraphWithSavepoint(true, savepointId, 1);
 
-        final ExecutionGraphFactory executionGraphFactory = createExecutionGraphFactory();
+        final JobManagerJobMetricGroup metricGroup =
+                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
+        final ExecutionGraphFactory executionGraphFactory =
+                createExecutionGraphFactory(metricGroup);
 
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
@@ -130,6 +142,7 @@ class DefaultExecutionGraphFactoryTest {
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
                 new StandaloneCheckpointIDCounter(),
+                new CheckpointStatsTracker(10, metricGroup),
                 TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
                 0L,
                 new DefaultVertexAttemptNumberStore(),
@@ -150,23 +163,27 @@ class DefaultExecutionGraphFactoryTest {
         final JobGraph jobGraphWithParallelism2 = createJobGraphWithSavepoint(true, savepointId, 2);
 
         List<Span> spans = new ArrayList<>();
+        final JobManagerJobMetricGroup jobManagerJobMetricGroup =
+                new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
+                    @Override
+                    public void addSpan(SpanBuilder spanBuilder) {
+                        spans.add(spanBuilder.build());
+                    }
+                };
         final ExecutionGraphFactory executionGraphFactory =
-                createExecutionGraphFactory(
-                        new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
-                            @Override
-                            public void addSpan(SpanBuilder spanBuilder) {
-                                spans.add(spanBuilder.build());
-                            }
-                        });
+                createExecutionGraphFactory(jobManagerJobMetricGroup);
 
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
+        final CheckpointStatsTracker checkpointStatsTracker =
+                new CheckpointStatsTracker(10, jobManagerJobMetricGroup);
         ExecutionGraph executionGraph =
                 executionGraphFactory.createAndRestoreExecutionGraph(
                         jobGraphWithParallelism2,
                         completedCheckpointStore,
                         new CheckpointsCleaner(),
                         new StandaloneCheckpointIDCounter(),
+                        checkpointStatsTracker,
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
                         0L,
                         new DefaultVertexAttemptNumberStore(),
@@ -177,20 +194,20 @@ class DefaultExecutionGraphFactoryTest {
                         rp -> false,
                         log);
 
-        CheckpointStatsTracker checkpointStatsTracker = executionGraph.getCheckpointStatsTracker();
-        assertThat(checkpointStatsTracker).isNotNull();
-
-        final ExecutionAttemptID randomAttemptId = ExecutionAttemptID.randomId();
-        checkpointStatsTracker.reportInitializationStarted(
-                Sets.newHashSet(randomAttemptId), SystemClock.getInstance().absoluteTimeMillis());
-
         checkpointStatsTracker.reportRestoredCheckpoint(
                 savepointId,
                 CheckpointProperties.forSavepoint(false, SavepointFormatType.NATIVE),
                 "foo",
                 1337);
+
+        final Set<ExecutionAttemptID> executionAttemptIDs =
+                IterableUtils.toStream(executionGraph.getAllExecutionVertices())
+                        .map(ExecutionVertex::getCurrentExecutionAttempt)
+                        .map(Execution::getAttemptId)
+                        .collect(Collectors.toSet());
+        assertThat(executionAttemptIDs).hasSize(1);
         checkpointStatsTracker.reportInitializationMetrics(
-                randomAttemptId,
+                executionAttemptIDs.iterator().next(),
                 new SubTaskInitializationMetricsBuilder(
                                 SystemClock.getInstance().absoluteTimeMillis())
                         .build());
@@ -198,13 +215,6 @@ class DefaultExecutionGraphFactoryTest {
         assertThat(spans).hasSize(1);
     }
 
-    @Nonnull
-    private ExecutionGraphFactory createExecutionGraphFactory() {
-        return createExecutionGraphFactory(
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
-    }
-
-    @Nonnull
     private ExecutionGraphFactory createExecutionGraphFactory(
             JobManagerJobMetricGroup metricGroup) {
         return new DefaultExecutionGraphFactory(
