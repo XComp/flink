@@ -53,8 +53,6 @@ public class DefaultRescaleManager implements RescaleManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultRescaleManager.class);
 
-    private static final Duration MAXIMUM_DELAY_FOR_TRIGGER = Duration.ofMinutes(10);
-
     private final Temporal initializationTime;
     private final Supplier<Temporal> clock;
 
@@ -65,7 +63,7 @@ public class DefaultRescaleManager implements RescaleManager {
 
     private boolean rescaleScheduled = false;
 
-    private final Duration maxTriggerDelay;
+    @VisibleForTesting final Duration maxTriggerDelay;
     private CompletableFuture<Void> triggerFuture;
 
     DefaultRescaleManager(
@@ -191,6 +189,7 @@ public class DefaultRescaleManager implements RescaleManager {
 
         private final Duration scalingIntervalMin;
         @Nullable private final Duration scalingIntervalMax;
+        private final Duration maximumDelayForTrigger;
 
         /**
          * Creates a {@code Factory} instance based on the {@link AdaptiveScheduler}'s {@code
@@ -199,12 +198,19 @@ public class DefaultRescaleManager implements RescaleManager {
         public static Factory fromSettings(AdaptiveScheduler.Settings settings) {
             // it's not ideal that we use a AdaptiveScheduler internal class here. We might want to
             // change that as part of a more general alignment of the rescaling configuration.
-            return new Factory(settings.getScalingIntervalMin(), settings.getScalingIntervalMax());
+            return new Factory(
+                    settings.getScalingIntervalMin(),
+                    settings.getScalingIntervalMax(),
+                    settings.getMaximumDelayForTriggeringRescale());
         }
 
-        private Factory(Duration scalingIntervalMin, @Nullable Duration scalingIntervalMax) {
+        private Factory(
+                Duration scalingIntervalMin,
+                @Nullable Duration scalingIntervalMax,
+                Duration maximumDelayForTrigger) {
             this.scalingIntervalMin = scalingIntervalMin;
             this.scalingIntervalMax = scalingIntervalMax;
+            this.maximumDelayForTrigger = maximumDelayForTrigger;
         }
 
         @Override
@@ -214,7 +220,7 @@ public class DefaultRescaleManager implements RescaleManager {
                     rescaleContext,
                     scalingIntervalMin,
                     scalingIntervalMax,
-                    MAXIMUM_DELAY_FOR_TRIGGER);
+                    maximumDelayForTrigger);
         }
     }
 }

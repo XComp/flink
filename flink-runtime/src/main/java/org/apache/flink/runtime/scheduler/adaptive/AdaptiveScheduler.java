@@ -144,6 +144,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_RESCALE_TRIGGER;
 import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_INCREASE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 
@@ -225,7 +226,8 @@ public class AdaptiveScheduler
                     configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT),
                     scalingIntervalMin,
                     scalingIntervalMax,
-                    configuration.get(MIN_PARALLELISM_INCREASE));
+                    configuration.get(MIN_PARALLELISM_INCREASE),
+                    configuration.get(MAXIMUM_DELAY_FOR_RESCALE_TRIGGER));
         }
 
         private final SchedulerExecutionMode executionMode;
@@ -234,6 +236,7 @@ public class AdaptiveScheduler
         private final Duration slotIdleTimeout;
         private final Duration scalingIntervalMin;
         private final Duration scalingIntervalMax;
+        private final Duration maximumDelayForTriggeringRescale;
         private final int minParallelismChangeForDesiredRescale;
 
         private Settings(
@@ -243,7 +246,8 @@ public class AdaptiveScheduler
                 Duration slotIdleTimeout,
                 Duration scalingIntervalMin,
                 Duration scalingIntervalMax,
-                int minParallelismChangeForDesiredRescale) {
+                int minParallelismChangeForDesiredRescale,
+                Duration maximumDelayForTriggeringRescale) {
             this.executionMode = executionMode;
             this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
@@ -251,6 +255,7 @@ public class AdaptiveScheduler
             this.scalingIntervalMin = scalingIntervalMin;
             this.scalingIntervalMax = scalingIntervalMax;
             this.minParallelismChangeForDesiredRescale = minParallelismChangeForDesiredRescale;
+            this.maximumDelayForTriggeringRescale = maximumDelayForTriggeringRescale;
         }
 
         public SchedulerExecutionMode getExecutionMode() {
@@ -279,6 +284,10 @@ public class AdaptiveScheduler
 
         public int getMinParallelismChangeForDesiredRescale() {
             return minParallelismChangeForDesiredRescale;
+        }
+
+        public Duration getMaximumDelayForTriggeringRescale() {
+            return maximumDelayForTriggeringRescale;
         }
     }
 
