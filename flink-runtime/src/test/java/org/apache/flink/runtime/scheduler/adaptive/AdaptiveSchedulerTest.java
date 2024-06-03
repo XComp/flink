@@ -106,6 +106,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
@@ -1280,7 +1281,8 @@ public class AdaptiveSchedulerTest {
         return new Configuration()
                 .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1L))
                 .set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L))
-                .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
+                .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L))
+                .set(JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, Duration.ZERO);
     }
 
     private AdaptiveSchedulerBuilder prepareSchedulerWithNoTimeouts(
@@ -2112,7 +2114,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testScalingIntervalConfigurationIsRespected() {
+    public void testScalingIntervalConfigurationIsRespected() throws ConfigurationException {
         final Duration scalingIntervalMin = Duration.ofMillis(1337);
         final Duration scalingIntervalMax = Duration.ofMillis(7331);
         final Configuration configuration = createConfigurationWithNoTimeouts();

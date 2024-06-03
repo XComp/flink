@@ -119,6 +119,7 @@ import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -189,13 +190,14 @@ public class AdaptiveScheduler
      */
     public static class Settings {
 
-        public static Settings of(Configuration configuration) {
+        public static Settings of(Configuration configuration) throws ConfigurationException {
             return of(configuration, null);
         }
 
         public static Settings of(
                 Configuration configuration,
-                @Nullable JobCheckpointingSettings checkpointingConfiguration) {
+                @Nullable JobCheckpointingSettings checkpointingConfiguration)
+                throws ConfigurationException {
             final SchedulerExecutionMode executionMode =
                     configuration.get(JobManagerOptions.SCHEDULER_MODE);
             Duration allocationTimeoutDefault =
@@ -225,11 +227,22 @@ public class AdaptiveScheduler
                         scalingIntervalMin);
             }
 
+            final int rescaleOnFailedCheckpointsCount =
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT);
+            if (rescaleOnFailedCheckpointsCount < 1) {
+                throw new ConfigurationException(
+                        String.format(
+                                "%s should have a value of 1 or higher.",
+                                JobManagerOptions.SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT
+                                        .key()));
+            }
+
+            // default value generation is documented in JobManagerOption
             final Duration maximumDelayForRescaleTriggerDefault =
                     checkpointingConfiguration != null
                             ? Duration.ofMillis(
-                                    JobManagerOptions
-                                                    .FACTOR_FOR_DEFAULT_MAXIMUM_DELAY_FOR_RESCALE_TRIGGER
+                                    (rescaleOnFailedCheckpointsCount + 1)
                                             * checkpointingConfiguration
                                                     .getCheckpointCoordinatorConfiguration()
                                                     .getCheckpointInterval())
@@ -248,7 +261,8 @@ public class AdaptiveScheduler
                     scalingIntervalMax,
                     configuration.get(MIN_PARALLELISM_INCREASE),
                     configuration.get(
-                            MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTriggerDefault));
+                            MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTriggerDefault),
+                    rescaleOnFailedCheckpointsCount);
         }
 
         private final SchedulerExecutionMode executionMode;
@@ -258,6 +272,7 @@ public class AdaptiveScheduler
         private final Duration scalingIntervalMin;
         private final Duration scalingIntervalMax;
         private final Duration maximumDelayForTriggeringRescale;
+        private final int rescaleOnFailedCheckpointCount;
         private final int minParallelismChangeForDesiredRescale;
 
         private Settings(
@@ -268,7 +283,8 @@ public class AdaptiveScheduler
                 Duration scalingIntervalMin,
                 Duration scalingIntervalMax,
                 int minParallelismChangeForDesiredRescale,
-                Duration maximumDelayForTriggeringRescale) {
+                Duration maximumDelayForTriggeringRescale,
+                int rescaleOnFailedCheckpointCount) {
             this.executionMode = executionMode;
             this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
@@ -277,6 +293,7 @@ public class AdaptiveScheduler
             this.scalingIntervalMax = scalingIntervalMax;
             this.minParallelismChangeForDesiredRescale = minParallelismChangeForDesiredRescale;
             this.maximumDelayForTriggeringRescale = maximumDelayForTriggeringRescale;
+            this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         }
 
         public SchedulerExecutionMode getExecutionMode() {
@@ -309,6 +326,10 @@ public class AdaptiveScheduler
 
         public Duration getMaximumDelayForTriggeringRescale() {
             return maximumDelayForTriggeringRescale;
+        }
+
+        public int getRescaleOnFailedCheckpointCount() {
+            return rescaleOnFailedCheckpointCount;
         }
     }
 
@@ -1091,7 +1112,8 @@ public class AdaptiveScheduler
                         userCodeClassLoader,
                         failureCollection,
                         rescaleManagerFactory,
-                        settings.getMinParallelismChangeForDesiredRescale()));
+                        settings.getMinParallelismChangeForDesiredRescale(),
+                        settings.getRescaleOnFailedCheckpointCount()));
     }
 
     @Override
