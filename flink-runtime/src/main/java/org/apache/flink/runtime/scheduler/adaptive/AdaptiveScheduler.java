@@ -74,6 +74,7 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -186,6 +187,12 @@ public class AdaptiveScheduler
     public static class Settings {
 
         public static Settings of(Configuration configuration) {
+            return of(configuration, null);
+        }
+
+        public static Settings of(
+                Configuration configuration,
+                @Nullable JobCheckpointingSettings checkpointingConfiguration) {
             final SchedulerExecutionMode executionMode =
                     configuration.get(JobManagerOptions.SCHEDULER_MODE);
             Duration allocationTimeoutDefault =
@@ -215,6 +222,16 @@ public class AdaptiveScheduler
                         scalingIntervalMin);
             }
 
+            final Duration maximumDelayForRescaleTriggerDefault =
+                    checkpointingConfiguration != null
+                            ? Duration.ofMillis(
+                                    JobManagerOptions
+                                                    .FACTOR_FOR_DEFAULT_MAXIMUM_DELAY_FOR_RESCALE_TRIGGER
+                                            * checkpointingConfiguration
+                                                    .getCheckpointCoordinatorConfiguration()
+                                                    .getCheckpointInterval())
+                            : Duration.ZERO;
+
             return new Settings(
                     executionMode,
                     configuration
@@ -227,7 +244,9 @@ public class AdaptiveScheduler
                     scalingIntervalMin,
                     scalingIntervalMax,
                     configuration.get(MIN_PARALLELISM_INCREASE),
-                    configuration.get(MAXIMUM_DELAY_FOR_RESCALE_TRIGGER));
+                    configuration.get(
+                            MAXIMUM_DELAY_FOR_RESCALE_TRIGGER,
+                            maximumDelayForRescaleTriggerDefault));
         }
 
         private final SchedulerExecutionMode executionMode;
