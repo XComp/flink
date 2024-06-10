@@ -23,6 +23,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
 
@@ -110,6 +111,32 @@ class DefaultRescaleManagerTest {
                         "No rescaling should have been triggered due to the missing change event despite the fact that desired rescaling would be possible.")
                 .isFalse();
         assertThat(ctx.additionalTasksWaiting()).as("No tasks should be scheduled.").isFalse();
+    }
+
+    @Test
+    void testRescaleRightAfterCooldown() {
+        final TestingRescaleManagerContext ctx =
+                TestingRescaleManagerContext.stableContext().withDesiredRescaling();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceInCooldownPhase();
+
+        testInstance.onChange();
+        testInstance.onTrigger();
+
+        assertThat(ctx.rescaleWasTriggered())
+                .as("Rescaling wasn't triggered, yet, because we're still in cooldown phase.")
+                .isFalse();
+        assertThat(ctx.additionalTasksWaiting()).isTrue();
+
+        ctx.transitionToInclusiveCooldownEnd();
+
+        assertThat(ctx.rescaleWasTriggered())
+                .as("Rescaling wasn't triggered, yet, because we're still in cooldown phase.")
+                .isFalse();
+        assertThat(ctx.additionalTasksWaiting()).isTrue();
+
+        ctx.passTime(Duration.ofMillis(1));
+
+        assertThat(ctx.rescaleWasTriggered()).isTrue();
     }
 
     @Test
@@ -632,6 +659,22 @@ class DefaultRescaleManagerTest {
          */
         public void transitionIntoCooldownTimeframe() {
             this.elapsedTime = SCALING_MIN.dividedBy(2);
+            this.triggerOutdatedTasks();
+        }
+
+        public void transitionToInclusiveCooldownEnd() {
+            setElapsedTime(SCALING_MIN.minusMillis(1));
+        }
+
+        public void passTime(Duration elapsed) {
+            setElapsedTime(this.elapsedTime.plus(elapsed));
+        }
+
+        public void setElapsedTime(Duration elapsedTime) {
+            Preconditions.checkState(
+                    this.elapsedTime.compareTo(elapsedTime) <= 0,
+                    "The elapsed time should monotonically increase.");
+            this.elapsedTime = elapsedTime;
             this.triggerOutdatedTasks();
         }
 

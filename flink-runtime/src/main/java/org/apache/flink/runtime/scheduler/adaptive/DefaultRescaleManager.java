@@ -139,11 +139,13 @@ public class DefaultRescaleManager implements RescaleManager {
     }
 
     private void evaluateChangeEvent() {
-        if (timeSinceLastRescale().compareTo(scalingIntervalMin) > 0) {
+        final Duration timeTillTimeout = scalingIntervalMin.minus(timeSinceLastRescale());
+
+        if (timeTillTimeout.isNegative() || timeTillTimeout.isZero()) {
             maybeRescale();
         } else if (!rescaleScheduled) {
             rescaleScheduled = true;
-            rescaleContext.scheduleOperation(this::maybeRescale, scalingIntervalMin);
+            rescaleContext.scheduleOperation(this::maybeRescale, timeTillTimeout);
         }
     }
 
