@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,22 +30,26 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.Temporal;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code DefaultRescaleManager} manages triggering the next rescaling based on when the previous
- * rescale operation happened and the available resources. It handles the event based on the
- * following phases (in that order):
+ * {@code DefaultRescaleManager} is a state machine which manages the rescaling based on the
+ * previous rescale operation and the available resources. See {@link State} for details on each
+ * individual state.
  *
- * <ol>
- *   <li>Cooldown phase: No rescaling takes place (its upper threshold is defined by {@code
- *       scalingIntervalMin}.
- *   <li>Soft-rescaling phase: Rescaling is triggered if the desired amount of resources is
- *       available.
- *   <li>Hard-rescaling phase: Rescaling is triggered if a sufficient amount of resources is
- *       available (its lower threshold is defined by (@code scalingIntervalMax}).
- * </ol>
+ * <pre>
+ * {@link Cooldown}
+ *   |
+ *   +--> {@link Idling}
+ *   |      |
+ *   |      V
+ *   +--> {@link Stabilizing}
+ *          |
+ *          +--> {@link Stabilized} --> {@link Idling}
+ *          |      |
+ *          |      V
+ *          \--> Rescaling
+ * </pre>
  *
  * <p>Thread-safety: This class is not implemented in a thread-safe manner and relies on the fact
  * that any method call happens within a single thread.
@@ -58,7 +61,6 @@ public class DefaultRescaleManager implements RescaleManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultRescaleManager.class);
 
-    private final Temporal initializationTime;
     private final Supplier<Temporal> clock;
 
     @VisibleForTesting final Duration scalingIntervalMin;
@@ -66,20 +68,9 @@ public class DefaultRescaleManager implements RescaleManager {
 
     private final RescaleManager.Context rescaleContext;
 
-    private boolean rescaleScheduled = false;
-
     @VisibleForTesting final Duration maxTriggerDelay;
 
-    /**
-     * {@code triggerFuture} is used to allow triggering a scheduled callback. Rather than
-     * scheduling the callback itself, the callback is just chained with the future. The completion
-     * of the future is then scheduled which will, as a consequence, run the callback as part of the
-     * scheduled operation.
-     *
-     * <p>{@code triggerFuture} can be used to trigger the callback even earlier (before the
-     * scheduled delay has passed). See {@link #onTrigger()}.
-     */
-    private CompletableFuture<Void> triggerFuture;
+    private State state;
 
     DefaultRescaleManager(
             Temporal initializationTime,
@@ -104,11 +95,9 @@ public class DefaultRescaleManager implements RescaleManager {
             Duration scalingIntervalMin,
             @Nullable Duration scalingIntervalMax,
             Duration maxTriggerDelay) {
-        this.initializationTime = initializationTime;
         this.clock = clock;
 
         this.maxTriggerDelay = maxTriggerDelay;
-        this.triggerFuture = FutureUtils.completedVoidFuture();
 
         Preconditions.checkArgument(
                 scalingIntervalMax == null || scalingIntervalMin.compareTo(scalingIntervalMax) <= 0,
@@ -117,79 +106,188 @@ public class DefaultRescaleManager implements RescaleManager {
         this.scalingIntervalMax = scalingIntervalMax;
 
         this.rescaleContext = rescaleContext;
+
+        this.state = new Cooldown(initializationTime, clock, this, scalingIntervalMin);
     }
 
     @Override
     public void onChange() {
-        if (this.triggerFuture.isDone()) {
-            this.triggerFuture = scheduleOperationWithTrigger(this::evaluateChangeEvent);
-        }
+        state.onChange();
     }
 
     @Override
     public void onTrigger() {
-        if (!this.triggerFuture.isDone()) {
-            this.triggerFuture.complete(null);
-            LOG.debug(
-                    "A rescale trigger event was observed causing the rescale verification logic to be initiated.");
-        } else {
-            LOG.debug(
-                    "A rescale trigger event was observed outside of a rescale cycle. No action taken.");
+        state.onTrigger();
+    }
+
+    private void transitionToIdle() {
+        // TODO: resourceWaitTimeout is not available, yet
+        transitionToState(new Idling(clock, this, null));
+    }
+
+    private void transitionToStabilizing(Temporal firstChangeEventTimestamp) {
+        transitionToState(
+                new Stabilizing(clock, this, this.scalingIntervalMax, firstChangeEventTimestamp));
+    }
+
+    private void transitionToStabilized(Temporal firstChangeEventTimestamp) {
+        transitionToState(new Stabilized(clock, this, firstChangeEventTimestamp, maxTriggerDelay));
+    }
+
+    private void transitionToState(State newState) {
+        LOG.debug("Transitioning from {} to {}.", this.state, newState);
+        this.state = newState;
+    }
+
+    private void transitionToRescale() {
+        this.rescaleContext.rescale();
+    }
+
+    private abstract static class State {
+
+        private final Supplier<Temporal> clock;
+        private final DefaultRescaleManager context;
+
+        public State(Supplier<Temporal> clock, DefaultRescaleManager context) {
+            this.clock = clock;
+            this.context = context;
         }
-    }
 
-    private void evaluateChangeEvent() {
-        final Duration timeTillTimeout = scalingIntervalMin.minus(timeSinceLastRescale());
-
-        if (timeTillTimeout.isNegative() || timeTillTimeout.isZero()) {
-            maybeRescale();
-        } else if (!rescaleScheduled) {
-            rescaleScheduled = true;
-            rescaleContext.scheduleOperation(this::maybeRescale, timeTillTimeout);
+        protected Temporal now() {
+            return this.clock.get();
         }
+
+        protected void scheduleRelativelyTo(
+                Runnable callback, Temporal startOfTimeout, Duration timeout) {
+            final Duration timeoutLeft =
+                    timeout.minus(Duration.between(startOfTimeout, clock.get()));
+            scheduleFromNow(callback, timeoutLeft.isNegative() ? Duration.ZERO : timeoutLeft);
+        }
+
+        protected void scheduleFromNow(Runnable callback, Duration delay) {
+            context.rescaleContext.scheduleOperation(callback, delay);
+        }
+
+        protected DefaultRescaleManager context() {
+            return context;
+        }
+
+        public void onChange() {}
+
+        public void onTrigger() {}
     }
 
-    private CompletableFuture<Void> scheduleOperationWithTrigger(Runnable callback) {
-        final CompletableFuture<Void> triggerFuture = new CompletableFuture<>();
-        triggerFuture.thenRun(callback);
-        this.rescaleContext.scheduleOperation(
-                () -> triggerFuture.complete(null), this.maxTriggerDelay);
+    /**
+     * {@link State} to prevent any rescaling. {@link RescaleManager#onChange()} events will be
+     * monitored and forwarded to the next state. {@link RescaleManager#onTrigger()} events will be
+     * ignored.
+     */
+    private static class Cooldown extends State {
 
-        return triggerFuture;
-    }
+        @Nullable private Temporal firstChangeEventTimestamp;
 
-    private Duration timeSinceLastRescale() {
-        return Duration.between(this.initializationTime, clock.get());
-    }
+        public Cooldown(
+                Temporal timeOfLastRescale,
+                Supplier<Temporal> clock,
+                DefaultRescaleManager context,
+                Duration cooldownTimeout) {
+            super(clock, context);
 
-    private void maybeRescale() {
-        rescaleScheduled = false;
-        if (rescaleContext.hasDesiredResources()) {
-            LOG.info("Desired parallelism for job was reached: Rescaling will be triggered.");
-            rescaleContext.rescale();
-        } else if (scalingIntervalMax != null) {
-            LOG.info(
-                    "The longer the pipeline runs, the more the (small) resource gain is worth the restarting time. "
-                            + "Last resource added does not meet the configured minimal parallelism change. Forced rescaling will be triggered after {} if the resource is still there.",
-                    scalingIntervalMax);
+            this.scheduleRelativelyTo(this::finalizeCooldown, timeOfLastRescale, cooldownTimeout);
+        }
 
-            // reasoning for inconsistent scheduling:
-            // https://lists.apache.org/thread/m2w2xzfjpxlw63j0k7tfxfgs0rshhwwr
-            if (timeSinceLastRescale().compareTo(scalingIntervalMax) > 0) {
-                rescaleWithSufficientResources();
+        private void finalizeCooldown() {
+            if (firstChangeEventTimestamp == null) {
+                context().transitionToIdle();
             } else {
-                rescaleContext.scheduleOperation(
-                        this::rescaleWithSufficientResources, scalingIntervalMax);
+                context().transitionToStabilizing(firstChangeEventTimestamp);
+            }
+        }
+
+        @Override
+        public void onChange() {
+            if (firstChangeEventTimestamp == null) {
+                firstChangeEventTimestamp = this.now();
             }
         }
     }
 
-    private void rescaleWithSufficientResources() {
-        if (rescaleContext.hasSufficientResources()) {
-            LOG.info(
-                    "Resources for desired job parallelism couldn't be collected after {}: Rescaling will be enforced.",
-                    scalingIntervalMax);
-            rescaleContext.rescale();
+    /**
+     * {@link State} which succeeds the {@link Cooldown} state if no {@link
+     * RescaleManager#onChange()} was observed, yet. The {@code DefaultRescaleManager} waits for a
+     * first {@link RescaleManager#onChange()} event. {@link RescaleManager#onTrigger()} events will
+     * be ignored.
+     */
+    private static class Idling extends State {
+
+        public Idling(
+                Supplier<Temporal> clock,
+                DefaultRescaleManager context,
+                @Nullable Duration resourceWaitTimeout) {
+            super(clock, context);
+
+            if (resourceWaitTimeout != null) {
+                scheduleFromNow(context::transitionToRescale, resourceWaitTimeout);
+            }
+        }
+
+        @Override
+        public void onChange() {
+            context().transitionToStabilizing(now());
+        }
+    }
+
+    /**
+     * {@link State} that handles the resources stabilization. In this state, {@link
+     * RescaleManager#onTrigger()} will initiate rescaling iff desired resources are met.
+     */
+    private static class Stabilizing extends State {
+
+        public Stabilizing(
+                Supplier<Temporal> clock,
+                DefaultRescaleManager context,
+                Duration resourceStabilizationTimeout,
+                Temporal firstOnChangeEventTimestamp) {
+            super(clock, context);
+
+            this.scheduleRelativelyTo(
+                    () -> context().transitionToStabilized(firstOnChangeEventTimestamp),
+                    firstOnChangeEventTimestamp,
+                    resourceStabilizationTimeout);
+        }
+
+        @Override
+        public void onTrigger() {
+            if (this.context().rescaleContext.hasDesiredResources()) {
+                context().transitionToRescale();
+            }
+        }
+    }
+
+    /**
+     * {@link State} that handles the post-stabilization phase. A {@link RescaleManager#onTrigger()}
+     * event initiates rescaling iff sufficient resources are available; otherwise transitioning to
+     * {@link Idling} will be performed.
+     */
+    private static class Stabilized extends State {
+
+        public Stabilized(
+                Supplier<Temporal> clock,
+                DefaultRescaleManager context,
+                Temporal firstChangeEventTimestamp,
+                Duration maxTriggerDelay) {
+            super(clock, context);
+
+            this.scheduleRelativelyTo(this::onTrigger, firstChangeEventTimestamp, maxTriggerDelay);
+        }
+
+        @Override
+        public void onTrigger() {
+            if (context().rescaleContext.hasSufficientResources()) {
+                context().transitionToRescale();
+            } else {
+                context().transitionToIdle();
+            }
         }
     }
 

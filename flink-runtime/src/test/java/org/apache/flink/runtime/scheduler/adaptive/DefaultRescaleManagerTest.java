@@ -82,24 +82,26 @@ class DefaultRescaleManagerTest {
 
     @Test
     void triggerWithoutChangeEventNoopInCooldownPhase() {
+        // the transition to idle state is expected to be scheduled
         triggerWithoutChangeEventNoop(
-                TestingRescaleManagerContext::createTestInstanceInCooldownPhase);
+                TestingRescaleManagerContext::createTestInstanceInCooldownPhase, true);
     }
 
     @Test
     void triggerWithoutChangeEventNoopInSoftRescalingPhase() {
         triggerWithoutChangeEventNoop(
-                TestingRescaleManagerContext::createTestInstanceInSoftRescalePhase);
+                TestingRescaleManagerContext::createTestInstanceInSoftRescalePhase, false);
     }
 
     @Test
     void triggerWithoutChangeEventNoopInHardRescalingPhase() {
         triggerWithoutChangeEventNoop(
-                TestingRescaleManagerContext::createTestInstanceInHardRescalePhase);
+                TestingRescaleManagerContext::createTestInstanceInHardRescalePhase, false);
     }
 
     private void triggerWithoutChangeEventNoop(
-            Function<TestingRescaleManagerContext, DefaultRescaleManager> testInstanceCreator) {
+            Function<TestingRescaleManagerContext, DefaultRescaleManager> testInstanceCreator,
+            boolean expectedScheduledTasks) {
         final TestingRescaleManagerContext ctx =
                 TestingRescaleManagerContext.stableContext().withDesiredRescaling();
         final DefaultRescaleManager testInstance = testInstanceCreator.apply(ctx);
@@ -110,7 +112,9 @@ class DefaultRescaleManagerTest {
                 .as(
                         "No rescaling should have been triggered due to the missing change event despite the fact that desired rescaling would be possible.")
                 .isFalse();
-        assertThat(ctx.additionalTasksWaiting()).as("No tasks should be scheduled.").isFalse();
+        assertThat(ctx.additionalTasksWaiting())
+                .as("No tasks should be scheduled.")
+                .isEqualTo(expectedScheduledTasks);
     }
 
     @Test
@@ -136,6 +140,8 @@ class DefaultRescaleManagerTest {
 
         ctx.passTime(Duration.ofMillis(1));
 
+        testInstance.onTrigger();
+
         assertThat(ctx.rescaleWasTriggered()).isTrue();
     }
 
@@ -155,6 +161,8 @@ class DefaultRescaleManagerTest {
         assertIntermediateStateWithoutRescale(softScalePossibleCtx);
 
         softScalePossibleCtx.transitionIntoSoftScalingTimeframe();
+
+        testInstance.onTrigger();
 
         assertFinalStateWithRescale(softScalePossibleCtx);
     }
@@ -283,9 +291,13 @@ class DefaultRescaleManagerTest {
 
         hardRescalePossibleCtx.transitionIntoSoftScalingTimeframe();
 
+        testInstance.onTrigger();
+
         assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
 
         hardRescalePossibleCtx.transitionIntoHardScalingTimeframe();
+
+        testInstance.onTrigger();
 
         assertFinalStateWithRescale(hardRescalePossibleCtx);
     }
@@ -306,20 +318,6 @@ class DefaultRescaleManagerTest {
         assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
 
         hardRescalePossibleCtx.transitionIntoHardScalingTimeframe();
-
-        assertFinalStateWithRescale(hardRescalePossibleCtx);
-    }
-
-    @Test
-    void testSufficientChangeInHardRescalePhase() {
-        final TestingRescaleManagerContext hardRescalePossibleCtx =
-                TestingRescaleManagerContext.stableContext().withSufficientRescaling();
-        final DefaultRescaleManager testInstance =
-                hardRescalePossibleCtx.createTestInstanceInHardRescalePhase();
-
-        testInstance.onChange();
-
-        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
 
         testInstance.onTrigger();
 
@@ -352,9 +350,8 @@ class DefaultRescaleManagerTest {
 
         assertThat(ctx.rescaleWasTriggered()).isTrue();
         assertThat(ctx.numberOfTasksWaiting())
-                .as(
-                        "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(3);
+                .as("There should be a task scheduled to transition to stabilized state.")
+                .isEqualTo(1);
     }
 
     @Test
@@ -373,8 +370,8 @@ class DefaultRescaleManagerTest {
 
         assertThat(ctx.numberOfTasksWaiting())
                 .as(
-                        "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(2);
+                        "There should be a task scheduled that allows transitioning into stabilized state.")
+                .isEqualTo(1);
 
         ctx.withDesiredRescaling();
 
@@ -405,7 +402,7 @@ class DefaultRescaleManagerTest {
         assertThat(ctx.numberOfTasksWaiting())
                 .as(
                         "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(2);
+                .isEqualTo(1);
 
         ctx.revertAnyParallelismImprovements();
 
@@ -420,7 +417,7 @@ class DefaultRescaleManagerTest {
         assertThat(ctx.numberOfTasksWaiting())
                 .as(
                         "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(2);
+                .isEqualTo(1);
 
         ctx.transitionIntoHardScalingTimeframe();
 
@@ -445,7 +442,7 @@ class DefaultRescaleManagerTest {
     }
 
     @Test
-    void testRevokedChangeInHardRescalingPhaseCausesWithSubsequentSufficientChange() {
+    void testRevokedChangeInHardRescalingPhaseResultsInTransitioningToIdleState() {
         final TestingRescaleManagerContext ctx = TestingRescaleManagerContext.stableContext();
         final DefaultRescaleManager testInstance = ctx.createTestInstanceInHardRescalePhase();
 
@@ -461,6 +458,15 @@ class DefaultRescaleManagerTest {
         ctx.withSufficientRescaling();
 
         testInstance.onChange();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
+        testInstance.onTrigger();
+
+        assertThat(ctx.rescaleWasTriggered()).isFalse();
+        assertThat(ctx.additionalTasksWaiting()).isTrue();
+
+        ctx.withDesiredRescaling();
 
         assertIntermediateStateWithoutRescale(ctx);
 
