@@ -145,7 +145,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_RESCALE_TRIGGER;
+import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER;
 import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_INCREASE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 
@@ -245,8 +245,7 @@ public class AdaptiveScheduler
                     scalingIntervalMax,
                     configuration.get(MIN_PARALLELISM_INCREASE),
                     configuration.get(
-                            MAXIMUM_DELAY_FOR_RESCALE_TRIGGER,
-                            maximumDelayForRescaleTriggerDefault));
+                            MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTriggerDefault));
         }
 
         private final SchedulerExecutionMode executionMode;

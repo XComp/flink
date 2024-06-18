@@ -52,7 +52,7 @@ class DefaultRescaleManagerTest {
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
         configuration.set(
-                JobManagerOptions.MAXIMUM_DELAY_FOR_RESCALE_TRIGGER, maximumDelayForRescaleTrigger);
+                JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTrigger);
 
         final DefaultRescaleManager testInstance =
                 DefaultRescaleManager.Factory.fromSettings(

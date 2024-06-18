@@ -578,8 +578,8 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<Duration> MAXIMUM_DELAY_FOR_RESCALE_TRIGGER =
-            key("jobmanager.adaptive-scheduler.max-delay-for-rescale-trigger")
+    public static final ConfigOption<Duration> MAXIMUM_DELAY_FOR_SCALE_TRIGGER =
+            key("jobmanager.adaptive-scheduler.max-delay-for-scale-trigger")
                     .durationType()
                     .noDefaultValue()
                     .withDescription(
