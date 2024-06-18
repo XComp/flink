@@ -106,14 +106,22 @@ public class DefaultRescaleManager implements RescaleManager {
 
     @Override
     public void onChange() {
-        rescaleContext.scheduleOperation(
+        runInContextMainThread(
                 () -> {
                     if (this.triggerFuture.isDone()) {
                         this.triggerFuture =
                                 scheduleOperationWithTrigger(this::evaluateChangeEvent);
                     }
-                },
-                Duration.ZERO);
+                });
+    }
+
+    /**
+     * Runs the {@code callback} in the context's main thread by scheduling the operation with no
+     * delay. This method should be used for internal state changes that might be triggered from
+     * outside the context's main thread.
+     */
+    private void runInContextMainThread(Runnable callback) {
+        rescaleContext.scheduleOperation(callback, Duration.ZERO);
     }
 
     private void evaluateChangeEvent() {
@@ -136,7 +144,7 @@ public class DefaultRescaleManager implements RescaleManager {
 
     @Override
     public void onTrigger() {
-        rescaleContext.scheduleOperation(
+        runInContextMainThread(
                 () -> {
                     if (!this.triggerFuture.isDone()) {
                         this.triggerFuture.complete(null);
@@ -146,8 +154,7 @@ public class DefaultRescaleManager implements RescaleManager {
                         LOG.debug(
                                 "A rescale trigger event was observed outside of a rescale cycle. No action taken.");
                     }
-                },
-                Duration.ZERO);
+                });
     }
 
     private Duration timeSinceLastRescale() {
