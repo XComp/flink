@@ -125,6 +125,21 @@ public class DefaultRescaleManager implements RescaleManager {
                 });
     }
 
+    @Override
+    public void onTrigger() {
+        runInContextMainThread(
+                () -> {
+                    if (!this.triggerFuture.isDone()) {
+                        this.triggerFuture.complete(null);
+                        LOG.debug(
+                                "A rescale trigger event was observed causing the rescale verification logic to be initiated.");
+                    } else {
+                        LOG.debug(
+                                "A rescale trigger event was observed outside of a rescale cycle. No action taken.");
+                    }
+                });
+    }
+
     /**
      * Runs the {@code callback} in the context's main thread by scheduling the operation with no
      * delay. This method should be used for internal state changes that might be triggered from
@@ -150,21 +165,6 @@ public class DefaultRescaleManager implements RescaleManager {
                 () -> triggerFuture.complete(null), this.maxTriggerDelay);
 
         return triggerFuture;
-    }
-
-    @Override
-    public void onTrigger() {
-        runInContextMainThread(
-                () -> {
-                    if (!this.triggerFuture.isDone()) {
-                        this.triggerFuture.complete(null);
-                        LOG.debug(
-                                "A rescale trigger event was observed causing the rescale verification logic to be initiated.");
-                    } else {
-                        LOG.debug(
-                                "A rescale trigger event was observed outside of a rescale cycle. No action taken.");
-                    }
-                });
     }
 
     private Duration timeSinceLastRescale() {
