@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 /** An interface that allows listening on the checkpoint lifecycle. */
-public interface CheckpointLifecycleListener {
+public interface CheckpointStatsListener {
 
     /** Called when a checkpoint was completed successfully. */
     default void onCompletedCheckpoint() {
