@@ -64,6 +64,16 @@ public class DefaultRescaleManager implements RescaleManager {
     private boolean rescaleScheduled = false;
 
     @VisibleForTesting final Duration maxTriggerDelay;
+
+    /**
+     * {@code triggerFuture} is used to allow triggering a scheduled callback. Rather than
+     * scheduling the callback itself, the callback is just chained with the future. The completion
+     * of the future is then scheduled which will, as a consequence, run the callback as part of the
+     * scheduled operation.
+     *
+     * <p>{@code triggerFuture} can be used to trigger the callback even earlier (before the
+     * scheduled delay has passed). See {@link #onTrigger()}.
+     */
     private CompletableFuture<Void> triggerFuture;
 
     DefaultRescaleManager(
