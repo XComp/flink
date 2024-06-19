@@ -34,7 +34,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
-import org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase;
+import org.apache.flink.test.util.RestClientHelper;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
@@ -124,7 +124,8 @@ class UpdateJobResourceRequirementsRecoveryITCase {
 
         try (final MiniCluster recoveredMiniCluster = new MiniCluster(miniClusterConfiguration)) {
             recoveredMiniCluster.start();
-            UpdateJobResourceRequirementsITCase.waitForRunningTasks(restClusterClient, jobId, 2);
+
+            new RestClientHelper(restClusterClient).waitForRunningTasks(jobId, 2);
         }
     }
 }

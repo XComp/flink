@@ -31,7 +31,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -60,6 +59,7 @@ import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.RestClientHelper;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
@@ -89,8 +89,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForNewCheckpoint;
-import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForAvailableSlots;
-import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForRunningTasks;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -144,7 +142,7 @@ public class AutoRescalingITCase extends TestLogger {
     }
 
     private static MiniClusterWithClientResource cluster;
-    private static RestClusterClient<?> restClusterClient;
+    private static RestClientHelper restClusterClient;
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -189,7 +187,7 @@ public class AutoRescalingITCase extends TestLogger {
                                     .setNumberSlotsPerTaskManager(slotsPerTaskManager)
                                     .build());
             cluster.before();
-            restClusterClient = cluster.getRestClusterClient();
+            restClusterClient = new RestClientHelper(cluster.getRestClusterClient());
         }
     }
 
@@ -285,10 +283,13 @@ public class AutoRescalingITCase extends TestLogger {
                 builder.setParallelismForJobVertex(vertex.getID(), parallelism2, parallelism2);
             }
 
-            restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
+            restClusterClient
+                    .getRestClusterClient()
+                    .updateJobResourceRequirements(jobID, builder.build())
+                    .join();
 
-            waitForRunningTasks(restClusterClient, jobID, 2 * parallelism2);
-            waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
+            restClusterClient.waitForRunningTasks(jobID, 2 * parallelism2);
+            restClusterClient.waitForAvailableSlots(totalSlots - parallelism2);
 
             SubtaskIndexSource.SOURCE_LATCH.trigger();
 
@@ -350,10 +351,13 @@ public class AutoRescalingITCase extends TestLogger {
                 builder.setParallelismForJobVertex(vertex.getID(), parallelism2, parallelism2);
             }
 
-            restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
+            restClusterClient
+                    .getRestClusterClient()
+                    .updateJobResourceRequirements(jobID, builder.build())
+                    .join();
 
-            waitForRunningTasks(restClusterClient, jobID, 2 * parallelism2);
-            waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
+            restClusterClient.waitForRunningTasks(jobID, 2 * parallelism2);
+            restClusterClient.waitForAvailableSlots(totalSlots - parallelism2);
 
             StateSourceBase.canFinishLatch.countDown();
 
@@ -440,11 +444,14 @@ public class AutoRescalingITCase extends TestLogger {
                 }
             }
 
-            restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
+            restClusterClient
+                    .getRestClusterClient()
+                    .updateJobResourceRequirements(jobID, builder.build())
+                    .join();
 
             // Source is parallelism, the flatMapper & Sink is parallelism2
-            waitForRunningTasks(restClusterClient, jobID, parallelism + parallelism2);
-            waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
+            restClusterClient.waitForRunningTasks(jobID, parallelism + parallelism2);
+            restClusterClient.waitForAvailableSlots(totalSlots - parallelism2);
 
             SubtaskIndexSource.SOURCE_LATCH.trigger();
 
@@ -536,10 +543,13 @@ public class AutoRescalingITCase extends TestLogger {
             builder.setParallelismForJobVertex(vertex.getID(), parallelism2, parallelism2);
         }
 
-        restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
+        restClusterClient
+                .getRestClusterClient()
+                .updateJobResourceRequirements(jobID, builder.build())
+                .join();
 
-        waitForRunningTasks(restClusterClient, jobID, 2 * parallelism2);
-        waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
+        restClusterClient.waitForRunningTasks(jobID, 2 * parallelism2);
+        restClusterClient.waitForAvailableSlots(totalSlots - parallelism2);
 
         StateSourceBase.canFinishLatch.countDown();
 
