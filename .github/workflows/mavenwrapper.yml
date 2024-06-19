@@ -1,0 +1,37 @@
+# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "FLINK-33607" ]
+
+jobs:
+  run-maven-wrapper:
+    strategy:
+      matrix:
+        include:
+          - os: 'ubuntu-latest'
+            cmd: './mvnw'
+          - os: 'macos-latest'
+            cmd: './mvnw'
+          - os: 'windows-latest'
+            cmd: './mvnw.cmd'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .mvn/wrapper/maven-wrapper.properties
+            mvnw
+            mvnw.cmd
+      - name: Print Maven version info
+        run: ${{ matrix.cmd }} --version
