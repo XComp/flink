@@ -23,19 +23,16 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.test.util.RestClientHelper;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -72,11 +69,11 @@ public class UpdateJobResourceRequirementsITCase {
         return configuration;
     }
 
-    private RestClusterClient<?> restClusterClient;
+    private RestClientHelper restClusterClient;
 
     @BeforeEach
     void beforeEach(@InjectClusterClient RestClusterClient<?> restClusterClient) {
-        this.restClusterClient = restClusterClient;
+        this.restClusterClient = new RestClientHelper(restClusterClient);
     }
 
     @Test
@@ -189,49 +186,21 @@ public class UpdateJobResourceRequirementsITCase {
             int runningTasksAfterRescale,
             int freeSlotsAfterRescale)
             throws Exception {
-        restClusterClient.submitJob(jobGraph).join();
+        restClusterClient.getRestClusterClient().submitJob(jobGraph).join();
         try {
             final JobID jobId = jobGraph.getJobID();
 
-            waitForRunningTasks(restClusterClient, jobId, initialRunningTasks);
+            restClusterClient.waitForRunningTasks(jobId, initialRunningTasks);
 
-            restClusterClient.updateJobResourceRequirements(jobId, newJobVertexParallelism).join();
+            restClusterClient
+                    .getRestClusterClient()
+                    .updateJobResourceRequirements(jobId, newJobVertexParallelism)
+                    .join();
 
-            waitForRunningTasks(restClusterClient, jobId, runningTasksAfterRescale);
-            waitForAvailableSlots(restClusterClient, freeSlotsAfterRescale);
+            restClusterClient.waitForRunningTasks(jobId, runningTasksAfterRescale);
+            restClusterClient.waitForAvailableSlots(freeSlotsAfterRescale);
         } finally {
-            restClusterClient.cancel(jobGraph.getJobID()).join();
+            restClusterClient.getRestClusterClient().cancel(jobGraph.getJobID()).join();
         }
-    }
-
-    public static int getNumberRunningTasks(RestClusterClient<?> restClusterClient, JobID jobId) {
-        final JobDetailsInfo jobDetailsInfo = restClusterClient.getJobDetails(jobId).join();
-        return jobDetailsInfo.getJobVertexInfos().stream()
-                .map(JobDetailsInfo.JobVertexDetailsInfo::getTasksPerState)
-                .map(tasksPerState -> tasksPerState.get(ExecutionState.RUNNING))
-                .mapToInt(Integer::intValue)
-                .sum();
-    }
-
-    public static void waitForRunningTasks(
-            RestClusterClient<?> restClusterClient, JobID jobId, int desiredNumberOfRunningTasks)
-            throws Exception {
-        CommonTestUtils.waitUntilCondition(
-                () -> {
-                    final int numberOfRunningTasks =
-                            getNumberRunningTasks(restClusterClient, jobId);
-                    return numberOfRunningTasks == desiredNumberOfRunningTasks;
-                });
-    }
-
-    public static void waitForAvailableSlots(
-            RestClusterClient<?> restClusterClient, int desiredNumberOfAvailableSlots)
-            throws Exception {
-        CommonTestUtils.waitUntilCondition(
-                () -> {
-                    final ClusterOverviewWithVersion clusterOverview =
-                            restClusterClient.getClusterOverview().join();
-                    return clusterOverview.getNumSlotsAvailable() == desiredNumberOfAvailableSlots;
-                });
     }
 }
