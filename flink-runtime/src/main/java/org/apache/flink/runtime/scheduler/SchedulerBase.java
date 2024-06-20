@@ -105,6 +105,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
 
@@ -227,9 +228,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         completedCheckpointStore,
                         checkpointsCleaner,
                         checkpointIdCounter,
-                        new CheckpointStatsTracker(
-                                jobMasterConfiguration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
-                                jobManagerJobMetricGroup),
+                        jobMasterConfiguration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
                         initializationTimestamp,
                         mainThreadExecutor,
                         jobStatusListener,
@@ -376,7 +375,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
-            CheckpointStatsTracker checkpointStatsTracker,
+            int checkpointsHistorySize,
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             JobStatusListener jobStatusListener,
@@ -389,7 +388,10 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         completedCheckpointStore,
                         checkpointsCleaner,
                         checkpointIdCounter,
-                        checkpointStatsTracker,
+                        new CachingSupplier<>(
+                                () ->
+                                        new CheckpointStatsTracker(
+                                                checkpointsHistorySize, jobManagerJobMetricGroup)),
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
                                 jobGraph.getJobType()),
                         initializationTimestamp,

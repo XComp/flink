@@ -52,6 +52,7 @@ import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.clock.SystemClock;
+import org.apache.flink.util.function.CachingSupplier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,7 +109,7 @@ class DefaultExecutionGraphFactoryTest {
                                         new StandaloneCompletedCheckpointStore(1),
                                         new CheckpointsCleaner(),
                                         new StandaloneCheckpointIDCounter(),
-                                        new CheckpointStatsTracker(10, metricGroup),
+                                        createCachingSupplierForCheckpointStatsTracker(metricGroup),
                                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint
                                                 .CAN_BE_UNKNOWN,
                                         0L,
@@ -142,7 +143,7 @@ class DefaultExecutionGraphFactoryTest {
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
                 new StandaloneCheckpointIDCounter(),
-                new CheckpointStatsTracker(10, metricGroup),
+                createCachingSupplierForCheckpointStatsTracker(metricGroup),
                 TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
                 0L,
                 new DefaultVertexAttemptNumberStore(),
@@ -175,15 +176,15 @@ class DefaultExecutionGraphFactoryTest {
 
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
-        final CheckpointStatsTracker checkpointStatsTracker =
-                new CheckpointStatsTracker(10, jobManagerJobMetricGroup);
+        final CachingSupplier<CheckpointStatsTracker> checkpointStatsTrackerCachingSupplier =
+                createCachingSupplierForCheckpointStatsTracker(jobManagerJobMetricGroup);
         ExecutionGraph executionGraph =
                 executionGraphFactory.createAndRestoreExecutionGraph(
                         jobGraphWithParallelism2,
                         completedCheckpointStore,
                         new CheckpointsCleaner(),
                         new StandaloneCheckpointIDCounter(),
-                        checkpointStatsTracker,
+                        checkpointStatsTrackerCachingSupplier,
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
                         0L,
                         new DefaultVertexAttemptNumberStore(),
@@ -193,6 +194,9 @@ class DefaultExecutionGraphFactoryTest {
                         (execution, previousState, newState) -> {},
                         rp -> false,
                         log);
+
+        final CheckpointStatsTracker checkpointStatsTracker =
+                checkpointStatsTrackerCachingSupplier.get();
 
         checkpointStatsTracker.reportRestoredCheckpoint(
                 savepointId,
@@ -213,6 +217,11 @@ class DefaultExecutionGraphFactoryTest {
                         .build());
 
         assertThat(spans).hasSize(1);
+    }
+
+    private static CachingSupplier<CheckpointStatsTracker>
+            createCachingSupplierForCheckpointStatsTracker(JobManagerJobMetricGroup metricGroup) {
+        return new CachingSupplier<>(() -> new CheckpointStatsTracker(10, metricGroup));
     }
 
     private ExecutionGraphFactory createExecutionGraphFactory(

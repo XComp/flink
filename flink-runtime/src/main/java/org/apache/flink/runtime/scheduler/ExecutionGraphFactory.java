@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
 
@@ -41,7 +42,10 @@ public interface ExecutionGraphFactory {
      * @param completedCheckpointStore completedCheckpointStore to pass to the CheckpointCoordinator
      * @param checkpointsCleaner checkpointsCleaner to pass to the CheckpointCoordinator
      * @param checkpointIdCounter checkpointIdCounter to pass to the CheckpointCoordinator
-     * @param checkpointStatsTracker checkpointStatsTracker used for tracking checkpoints
+     * @param checkpointStatsTrackerCachingSupplier The {@link CachingSupplier} that is used provide
+     *     the {@link CheckpointStatsTracker}. {@code CachingSupplier} is used here to allow for
+     *     lazy instantiation. This is required to avoid the side effects that appear during the
+     *     creation of a {@code CheckpointStatsTracker} if checkpointing is disabled.
      * @param partitionLocationConstraint partitionLocationConstraint for this job
      * @param initializationTimestamp initializationTimestamp when the ExecutionGraph was created
      * @param vertexAttemptNumberStore vertexAttemptNumberStore keeping information about the vertex
@@ -59,7 +63,7 @@ public interface ExecutionGraphFactory {
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
-            CheckpointStatsTracker checkpointStatsTracker,
+            CachingSupplier<CheckpointStatsTracker> checkpointStatsTrackerCachingSupplier,
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,

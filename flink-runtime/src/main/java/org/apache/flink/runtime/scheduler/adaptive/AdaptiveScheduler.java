@@ -121,6 +121,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.CachingSupplier;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -329,7 +330,7 @@ public class AdaptiveScheduler
     private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
     private final CheckpointIDCounter checkpointIdCounter;
-    private final CheckpointStatsTracker checkpointStatsTracker;
+    private final CachingSupplier<CheckpointStatsTracker> checkpointStatsTrackerCachingSupplier;
 
     private final CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
 
@@ -421,10 +422,12 @@ public class AdaptiveScheduler
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkpointRecoveryFactory);
-        this.checkpointStatsTracker =
-                new CheckpointStatsTracker(
-                        configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
-                        jobManagerJobMetricGroup);
+        this.checkpointStatsTrackerCachingSupplier =
+                new CachingSupplier<>(
+                        () ->
+                                new CheckpointStatsTracker(
+                                        configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                                        jobManagerJobMetricGroup));
 
         this.slotAllocator = slotAllocator;
 
@@ -1299,7 +1302,7 @@ public class AdaptiveScheduler
                 completedCheckpointStore,
                 checkpointsCleaner,
                 checkpointIdCounter,
-                checkpointStatsTracker,
+                checkpointStatsTrackerCachingSupplier,
                 TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                 initializationTimestamp,
                 vertexAttemptNumberStore,
