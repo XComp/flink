@@ -41,7 +41,6 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
 
@@ -131,7 +130,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
-            CachingSupplier<CheckpointStatsTracker> checkpointStatsTrackerCachingSupplier,
+            CheckpointStatsTracker checkpointStatsTracker,
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
@@ -171,7 +170,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         initializationTimestamp,
                         vertexAttemptNumberStore,
                         vertexParallelismStore,
-                        checkpointStatsTrackerCachingSupplier,
+                        checkpointStatsTracker,
                         isDynamicGraph,
                         executionJobVertexFactory,
                         markPartitionFinishedStrategy,
