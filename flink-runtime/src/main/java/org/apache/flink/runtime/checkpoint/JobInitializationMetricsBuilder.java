@@ -122,7 +122,10 @@ class JobInitializationMetricsBuilder {
     public void reportInitializationMetrics(
             ExecutionAttemptID executionAttemptId,
             SubTaskInitializationMetrics initializationMetrics) {
-        LOG.debug("Reported SubTaskInitializationMetrics={}", initializationMetrics);
+        LOG.debug(
+                "Reported SubTaskInitializationMetrics={} for execution attempt {}.",
+                initializationMetrics,
+                executionAttemptId);
         if (toInitialize.remove(executionAttemptId)) {
             reportedMetrics.put(executionAttemptId, initializationMetrics);
         } else {
