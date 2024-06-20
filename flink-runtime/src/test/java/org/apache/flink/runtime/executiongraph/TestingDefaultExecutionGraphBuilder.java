@@ -42,6 +42,7 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
+import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -179,8 +180,6 @@ public class TestingDefaultExecutionGraphBuilder {
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
                 checkpointIdCounter,
-                new CheckpointStatsTracker(
-                        0, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup()),
                 rpcTimeout,
                 blobWriter,
                 LOG,
@@ -194,6 +193,12 @@ public class TestingDefaultExecutionGraphBuilder {
                 new DefaultVertexAttemptNumberStore(),
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
+                new CachingSupplier<>(
+                        () ->
+                                new CheckpointStatsTracker(
+                                        0,
+                                        UnregisteredMetricGroups
+                                                .createUnregisteredJobManagerJobMetricGroup())),
                 isDynamicGraph,
                 executionJobVertexFactory,
                 markPartitionFinishedStrategy,
