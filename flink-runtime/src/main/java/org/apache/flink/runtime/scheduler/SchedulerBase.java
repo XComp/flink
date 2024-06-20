@@ -47,6 +47,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -105,7 +106,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
 
@@ -223,12 +223,20 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.deploymentStateTimeMetrics =
                 new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
+        final CheckpointStatsTracker checkpointStatsTracker =
+                SchedulerUtils.createCheckpointStatsTrackerIfCheckpointingIsEnabled(
+                        jobGraph.getCheckpointingSettings(),
+                        () ->
+                                new DefaultCheckpointStatsTracker(
+                                        jobMasterConfiguration.get(
+                                                WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                                        jobManagerJobMetricGroup));
         this.executionGraph =
                 createAndRestoreExecutionGraph(
                         completedCheckpointStore,
                         checkpointsCleaner,
                         checkpointIdCounter,
-                        jobMasterConfiguration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                        checkpointStatsTracker,
                         initializationTimestamp,
                         mainThreadExecutor,
                         jobStatusListener,
@@ -375,7 +383,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
-            int checkpointsHistorySize,
+            CheckpointStatsTracker checkpointStatsTracker,
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             JobStatusListener jobStatusListener,
@@ -388,10 +396,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         completedCheckpointStore,
                         checkpointsCleaner,
                         checkpointIdCounter,
-                        new CachingSupplier<>(
-                                () ->
-                                        new CheckpointStatsTracker(
-                                                checkpointsHistorySize, jobManagerJobMetricGroup)),
+                        checkpointStatsTracker,
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
                                 jobGraph.getJobType()),
                         initializationTimestamp,

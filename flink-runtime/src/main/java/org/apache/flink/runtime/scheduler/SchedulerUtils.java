@@ -24,18 +24,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
+import org.apache.flink.runtime.checkpoint.NoOpCheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 /** Utils class for Flink's scheduler implementations. */
 public final class SchedulerUtils {
@@ -104,6 +110,19 @@ public final class SchedulerUtils {
             }
         } else {
             return DeactivatedCheckpointIDCounter.INSTANCE;
+        }
+    }
+
+    public static CheckpointStatsTracker createCheckpointStatsTrackerIfCheckpointingIsEnabled(
+            @Nullable JobCheckpointingSettings checkpointingSettings,
+            Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory) {
+        if (checkpointingSettings != null
+                && checkpointingSettings
+                        .getCheckpointCoordinatorConfiguration()
+                        .isCheckpointingEnabled()) {
+            return checkpointStatsTrackerFactory.get();
+        } else {
+            return NoOpCheckpointStatsTracker.INSTANCE;
         }
     }
 

@@ -52,7 +52,6 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.function.CachingSupplier;
 
 import org.slf4j.Logger;
 
@@ -92,7 +91,7 @@ public class DefaultExecutionGraphBuilder {
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
-            CachingSupplier<CheckpointStatsTracker> checkpointStatsTrackerCachingSupplier,
+            CheckpointStatsTracker checkpointStatsTracker,
             boolean isDynamicGraph,
             ExecutionJobVertex.Factory executionJobVertexFactory,
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
@@ -342,7 +341,7 @@ public class DefaultExecutionGraphBuilder {
                     completedCheckpointStore,
                     rootBackend,
                     rootStorage,
-                    checkpointStatsTrackerCachingSupplier.get(),
+                    checkpointStatsTracker,
                     checkpointsCleaner,
                     jobManagerConfig.get(STATE_CHANGE_LOG_STORAGE));
         }

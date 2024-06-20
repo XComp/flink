@@ -47,6 +47,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -121,7 +122,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.function.CachingSupplier;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -330,7 +330,7 @@ public class AdaptiveScheduler
     private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
     private final CheckpointIDCounter checkpointIdCounter;
-    private final CachingSupplier<CheckpointStatsTracker> checkpointStatsTrackerCachingSupplier;
+    private final CheckpointStatsTracker checkpointStatsTracker;
 
     private final CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
 
@@ -422,10 +422,11 @@ public class AdaptiveScheduler
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkpointRecoveryFactory);
-        this.checkpointStatsTrackerCachingSupplier =
-                new CachingSupplier<>(
+        this.checkpointStatsTracker =
+                SchedulerUtils.createCheckpointStatsTrackerIfCheckpointingIsEnabled(
+                        jobGraph.getCheckpointingSettings(),
                         () ->
-                                new CheckpointStatsTracker(
+                                new DefaultCheckpointStatsTracker(
                                         configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
                                         jobManagerJobMetricGroup));
 
@@ -1302,7 +1303,7 @@ public class AdaptiveScheduler
                 completedCheckpointStore,
                 checkpointsCleaner,
                 checkpointIdCounter,
-                checkpointStatsTrackerCachingSupplier,
+                checkpointStatsTracker,
                 TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                 initializationTimestamp,
                 vertexAttemptNumberStore,
