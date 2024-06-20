@@ -86,8 +86,7 @@ public class ExecutionGraphHandler {
                 executionGraph.getCheckpointCoordinatorConfiguration();
         if (checkpointConfig == null || !checkpointConfig.isCheckpointingEnabled()) {
             // TODO: Consider to support reporting initialization stats without checkpointing
-            log.debug(
-                    "Ignoring reportInitializationMetrics if checkpoint coordinator is not present");
+            log.debug("Ignoring reportInitializationMetrics if checkpointing is not present");
             return;
         }
 
