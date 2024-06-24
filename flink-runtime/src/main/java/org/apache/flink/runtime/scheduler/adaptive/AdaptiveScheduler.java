@@ -244,6 +244,17 @@ public class AdaptiveScheduler
                                     && checkpointingConfiguration
                                             .getCheckpointCoordinatorConfiguration()
                                             .isCheckpointingEnabled()
+                            // incrementing the rescaleOnFailedCheckpointsCount by 1 is done to
+                            // avoid introducing a race-condition between the two parameters
+                            // (SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT and
+                            // MAXIMUM_DELAY_FOR_SCALE_TRIGGER). Without the increment, we would
+                            // have two configuration parameters that result in roughly the same
+                            // timeout (with the MAXIMUM_DELAY_FOR_SCALE_TRIGGER being probably a
+                            // bit faster). The user might experience unexpected behavior if the
+                            // SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT is configured and
+                            // MAXIMUM_DELAY_FOR_SCALE_TRIGGER is kept untouched in that case.
+                            // Incrementing the default value should help avoiding causing this kind
+                            // of confusing race condition.
                             ? Duration.ofMillis(
                                     (rescaleOnFailedCheckpointsCount + 1)
                                             * checkpointingConfiguration
