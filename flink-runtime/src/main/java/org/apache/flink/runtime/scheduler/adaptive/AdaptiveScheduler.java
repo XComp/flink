@@ -1536,9 +1536,12 @@ public class AdaptiveScheduler
                         TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Wrapper class implementing {@link CheckpointStatsListener} in a way that checkpoint-related
+     * events are actually executed in the {@code AdaptiveScheduler}'s main thread.
+     */
     private CheckpointStatsListener createCheckpointStatsListener() {
-        // wrapper implementation ensuring that the checkpoint-related events are handled in the
-        // scheduler's main thread
+
         return new CheckpointStatsListener() {
 
             @Override
