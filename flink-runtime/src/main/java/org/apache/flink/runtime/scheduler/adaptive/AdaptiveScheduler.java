@@ -241,6 +241,9 @@ public class AdaptiveScheduler
             // default value generation is documented in JobManagerOption
             final Duration maximumDelayForRescaleTriggerDefault =
                     checkpointingConfiguration != null
+                                    && checkpointingConfiguration
+                                            .getCheckpointCoordinatorConfiguration()
+                                            .isCheckpointingEnabled()
                             ? Duration.ofMillis(
                                     (rescaleOnFailedCheckpointsCount + 1)
                                             * checkpointingConfiguration
