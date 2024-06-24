@@ -1543,18 +1543,31 @@ public class AdaptiveScheduler
 
             @Override
             public void onFailedCheckpoint() {
-                state.tryRun(
-                        CheckpointStatsListener.class,
-                        CheckpointStatsListener::onFailedCheckpoint,
-                        "onFailedCheckpointStats");
+                runIfSupported(
+                        CheckpointStatsListener::onCompletedCheckpoint, "onFailedCheckpoint");
             }
 
             @Override
             public void onCompletedCheckpoint() {
-                state.tryRun(
-                        CheckpointStatsListener.class,
-                        CheckpointStatsListener::onCompletedCheckpoint,
-                        "onCompletedCheckpointStats");
+                runIfSupported(
+                        CheckpointStatsListener::onCompletedCheckpoint, "onCompletedCheckpoint");
+            }
+
+            private void runIfSupported(
+                    ThrowingConsumer<CheckpointStatsListener, RuntimeException> callback,
+                    String callbackLabel) {
+                AdaptiveScheduler.this
+                        .getMainThreadExecutor()
+                        .execute(
+                                () ->
+                                        state.tryRun(
+                                                CheckpointStatsListener.class,
+                                                callback,
+                                                logger ->
+                                                        logger.debug(
+                                                                "{} is not supported by {}.",
+                                                                callbackLabel,
+                                                                state.getClass().getName())));
             }
         };
     }
