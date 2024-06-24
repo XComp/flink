@@ -584,7 +584,7 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The number of subsequent failed checkpoints that will initiate rescaling.")
+                                            "The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.")
                                     .build());
 
     @Documentation.Section({
