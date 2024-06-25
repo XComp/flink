@@ -49,7 +49,7 @@ import java.util.function.Supplier;
  * </ol>
  *
  * <p>Thread-safety: This class is not implemented in a thread-safe manner and relies on the fact
- * that any method call happens from within a single thread.
+ * that any method call happens within a single thread.
  *
  * @see Executing
  */
