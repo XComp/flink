@@ -147,6 +147,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER;
@@ -424,11 +425,62 @@ public class AdaptiveScheduler
             Collection<FailureEnricher> failureEnrichers,
             ExecutionGraphFactory executionGraphFactory)
             throws JobExecutionException {
+        this(
+                settings,
+                DefaultRescaleManager.Factory.fromSettings(settings),
+                (metricGroup, checkpointStatsListener) ->
+                        new DefaultCheckpointStatsTracker(
+                                configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                                metricGroup,
+                                checkpointStatsListener),
+                jobGraph,
+                jobResourceRequirements,
+                configuration,
+                declarativeSlotPool,
+                slotAllocator,
+                ioExecutor,
+                userCodeClassLoader,
+                checkpointsCleaner,
+                checkpointRecoveryFactory,
+                jobManagerJobMetricGroup,
+                restartBackoffTimeStrategy,
+                initializationTimestamp,
+                mainThreadExecutor,
+                fatalErrorHandler,
+                jobStatusListener,
+                failureEnrichers,
+                executionGraphFactory);
+    }
+
+    @VisibleForTesting
+    AdaptiveScheduler(
+            Settings settings,
+            RescaleManager.Factory rescaleManagerFactory,
+            BiFunction<JobManagerJobMetricGroup, CheckpointStatsListener, CheckpointStatsTracker>
+                    checkpointStatsTrackerFactory,
+            JobGraph jobGraph,
+            @Nullable JobResourceRequirements jobResourceRequirements,
+            Configuration configuration,
+            DeclarativeSlotPool declarativeSlotPool,
+            SlotAllocator slotAllocator,
+            Executor ioExecutor,
+            ClassLoader userCodeClassLoader,
+            CheckpointsCleaner checkpointsCleaner,
+            CheckpointRecoveryFactory checkpointRecoveryFactory,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            RestartBackoffTimeStrategy restartBackoffTimeStrategy,
+            long initializationTimestamp,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            FatalErrorHandler fatalErrorHandler,
+            JobStatusListener jobStatusListener,
+            Collection<FailureEnricher> failureEnrichers,
+            ExecutionGraphFactory executionGraphFactory)
+            throws JobExecutionException {
 
         assertPreconditions(jobGraph);
 
         this.settings = settings;
-        this.rescaleManagerFactory = DefaultRescaleManager.Factory.fromSettings(settings);
+        this.rescaleManagerFactory = rescaleManagerFactory;
 
         this.jobGraph = jobGraph;
         this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
@@ -462,10 +514,8 @@ public class AdaptiveScheduler
                 SchedulerUtils.createCheckpointStatsTrackerIfCheckpointingIsEnabled(
                         jobGraph,
                         () ->
-                                new DefaultCheckpointStatsTracker(
-                                        configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
-                                        jobManagerJobMetricGroup,
-                                        createCheckpointStatsListener()));
+                                checkpointStatsTrackerFactory.apply(
+                                        jobManagerJobMetricGroup, createCheckpointStatsListener()));
 
         this.slotAllocator = slotAllocator;
 
@@ -1546,8 +1596,7 @@ public class AdaptiveScheduler
 
             @Override
             public void onFailedCheckpoint() {
-                runIfSupported(
-                        CheckpointStatsListener::onCompletedCheckpoint, "onFailedCheckpoint");
+                runIfSupported(CheckpointStatsListener::onFailedCheckpoint, "onFailedCheckpoint");
             }
 
             @Override
