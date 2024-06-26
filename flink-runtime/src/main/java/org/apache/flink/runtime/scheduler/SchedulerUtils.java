@@ -33,12 +33,9 @@ import org.apache.flink.runtime.checkpoint.NoOpCheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
-
-import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
@@ -114,12 +111,8 @@ public final class SchedulerUtils {
     }
 
     public static CheckpointStatsTracker createCheckpointStatsTrackerIfCheckpointingIsEnabled(
-            @Nullable JobCheckpointingSettings checkpointingSettings,
-            Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory) {
-        if (checkpointingSettings != null
-                && checkpointingSettings
-                        .getCheckpointCoordinatorConfiguration()
-                        .isCheckpointingEnabled()) {
+            JobGraph jobGraph, Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory) {
+        if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             return checkpointStatsTrackerFactory.get();
         } else {
             return NoOpCheckpointStatsTracker.INSTANCE;

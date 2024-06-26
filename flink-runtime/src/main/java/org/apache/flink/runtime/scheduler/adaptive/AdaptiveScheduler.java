@@ -424,7 +424,7 @@ public class AdaptiveScheduler
                         jobGraph, checkpointRecoveryFactory);
         this.checkpointStatsTracker =
                 SchedulerUtils.createCheckpointStatsTrackerIfCheckpointingIsEnabled(
-                        jobGraph.getCheckpointingSettings(),
+                        jobGraph,
                         () ->
                                 new DefaultCheckpointStatsTracker(
                                         configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
