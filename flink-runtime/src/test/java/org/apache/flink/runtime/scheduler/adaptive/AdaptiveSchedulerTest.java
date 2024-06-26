@@ -94,6 +94,7 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.scheduler.DefaultSchedulerTest;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
@@ -2228,6 +2229,7 @@ public class AdaptiveSchedulerTest {
                                                 .build(),
                                         null))
                         .build();
+        SchedulerTestingUtils.enableCheckpointing(jobGraph);
 
         // testing SlotPool instance that would allow for the scheduler to transition to Executing
         // state
