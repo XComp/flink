@@ -22,6 +22,8 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -73,6 +75,7 @@ public interface CheckpointStatsTracker {
      */
     void reportCompletedCheckpoint(CompletedCheckpointStats completed);
 
+    @Nullable
     PendingCheckpointStats getPendingCheckpointStats(long checkpointId);
 
     void reportIncompleteStats(
@@ -92,8 +95,9 @@ public interface CheckpointStatsTracker {
      * @param triggerTimestamp Trigger timestamp of the checkpoint.
      * @param props The checkpoint properties.
      * @param vertexToDop mapping of {@link JobVertexID} to DOP
-     * @return Tracker for statistics gathering.
+     * @return Tracker for statistics gathering or {@code null} if no stats were tracked.
      */
+    @Nullable
     PendingCheckpointStats reportPendingCheckpoint(
             long checkpointId,
             long triggerTimestamp,

@@ -21,7 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import java.util.Collections;
+import javax.annotation.Nullable;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -38,14 +39,10 @@ public enum NoOpCheckpointStatsTracker implements CheckpointStatsTracker {
     @Override
     public void reportCompletedCheckpoint(CompletedCheckpointStats completed) {}
 
+    @Nullable
     @Override
     public PendingCheckpointStats getPendingCheckpointStats(long checkpointId) {
-        return createPendingCheckpoint(
-                checkpointId,
-                System.currentTimeMillis(),
-                CheckpointProperties.forCheckpoint(
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                Collections.emptyMap());
+        return null;
     }
 
     @Override
@@ -61,21 +58,14 @@ public enum NoOpCheckpointStatsTracker implements CheckpointStatsTracker {
             ExecutionAttemptID executionAttemptId,
             SubTaskInitializationMetrics initializationMetrics) {}
 
+    @Nullable
     @Override
     public PendingCheckpointStats reportPendingCheckpoint(
             long checkpointId,
             long triggerTimestamp,
             CheckpointProperties props,
             Map<JobVertexID, Integer> vertexToDop) {
-        return createPendingCheckpoint(checkpointId, triggerTimestamp, props, vertexToDop);
-    }
-
-    private PendingCheckpointStats createPendingCheckpoint(
-            long checkpointId,
-            long triggerTimestamp,
-            CheckpointProperties props,
-            Map<JobVertexID, Integer> vertexToDop) {
-        return new PendingCheckpointStats(checkpointId, triggerTimestamp, props, vertexToDop);
+        return null;
     }
 
     @Override
