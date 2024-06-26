@@ -40,19 +40,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DefaultRescaleManagerTest {
 
     @Test
     void testProperConfiguration() throws ConfigurationException {
-        final Duration scalingIntervalMin = Duration.ofMillis(1337);
-        final Duration scalingIntervalMax = Duration.ofMillis(7331);
+        final Duration cooldownTimeout = Duration.ofMillis(1337);
+        final Duration resourceStabilizationTimeout = Duration.ofMillis(7331);
         final Duration maximumDelayForRescaleTrigger = Duration.ofMillis(4242);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
+        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, cooldownTimeout);
+        configuration.set(
+                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, resourceStabilizationTimeout);
         configuration.set(
                 JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTrigger);
 
@@ -60,24 +60,10 @@ class DefaultRescaleManagerTest {
                 DefaultRescaleManager.Factory.fromSettings(
                                 AdaptiveScheduler.Settings.of(configuration))
                         .create(TestingRescaleManagerContext.stableContext(), Instant.now());
-        assertThat(testInstance.scalingIntervalMin).isEqualTo(scalingIntervalMin);
-        assertThat(testInstance.scalingIntervalMax).isEqualTo(scalingIntervalMax);
+        assertThat(testInstance.cooldownTimeout).isEqualTo(cooldownTimeout);
+        assertThat(testInstance.resourceStabilizationTimeout)
+                .isEqualTo(resourceStabilizationTimeout);
         assertThat(testInstance.maxTriggerDelay).isEqualTo(maximumDelayForRescaleTrigger);
-    }
-
-    @Test
-    void testInvalidConfiguration() {
-        final Duration cooldownThreshold = Duration.ofMinutes(2);
-        final TestingRescaleManagerContext ctx = TestingRescaleManagerContext.stableContext();
-        assertThatThrownBy(
-                        () ->
-                                new DefaultRescaleManager(
-                                        Instant.now(),
-                                        ctx,
-                                        cooldownThreshold,
-                                        cooldownThreshold.minusNanos(1),
-                                        Duration.ofHours(5)))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -502,8 +488,8 @@ class DefaultRescaleManagerTest {
         private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
 
         // default configuration values to allow for easy transitioning between the phases
-        private static final Duration SCALING_MIN = Duration.ofHours(1);
-        private static final Duration SCALING_MAX = Duration.ofHours(2);
+        private static final Duration COOLDOWN_TIMEOUT = Duration.ofHours(1);
+        private static final Duration RESOURCE_STABILIZATION_TIMEOUT = Duration.ofHours(2);
         private static final int MIN_PARALLELISM_CHANGE = 2;
 
         private static final int CURRENT_PARALLELISM = 1;
@@ -629,8 +615,8 @@ class DefaultRescaleManagerTest {
                             // clock that returns the time based on the configured elapsedTime
                             () -> Objects.requireNonNull(initializationTime).plus(elapsedTime),
                             this,
-                            SCALING_MIN,
-                            SCALING_MAX,
+                            COOLDOWN_TIMEOUT,
+                            RESOURCE_STABILIZATION_TIMEOUT,
                             Duration.ofHours(5)) {
                         @Override
                         public void onChange() {
@@ -664,12 +650,12 @@ class DefaultRescaleManagerTest {
          * phase.
          */
         public void transitionIntoCooldownTimeframe() {
-            this.elapsedTime = SCALING_MIN.dividedBy(2);
+            this.elapsedTime = COOLDOWN_TIMEOUT.dividedBy(2);
             this.triggerOutdatedTasks();
         }
 
         public void transitionToInclusiveCooldownEnd() {
-            setElapsedTime(SCALING_MIN.minusMillis(1));
+            setElapsedTime(COOLDOWN_TIMEOUT.minusMillis(1));
         }
 
         public void passTime(Duration elapsed) {
@@ -691,10 +677,12 @@ class DefaultRescaleManagerTest {
         public void transitionIntoSoftScalingTimeframe() {
             // the state transition is scheduled based on the current event's time rather than the
             // initializationTime
-            this.elapsedTime = elapsedTime.plus(SCALING_MIN);
+            this.elapsedTime = elapsedTime.plus(COOLDOWN_TIMEOUT);
 
             // make sure that we're still below the scalingIntervalMax
-            this.elapsedTime = elapsedTime.plus(SCALING_MAX.minus(elapsedTime).dividedBy(2));
+            this.elapsedTime =
+                    elapsedTime.plus(
+                            RESOURCE_STABILIZATION_TIMEOUT.minus(elapsedTime).dividedBy(2));
             this.triggerOutdatedTasks();
         }
 
@@ -705,7 +693,7 @@ class DefaultRescaleManagerTest {
         public void transitionIntoHardScalingTimeframe() {
             // the state transition is scheduled based on the current event's time rather than the
             // initializationTime
-            this.elapsedTime = elapsedTime.plus(SCALING_MAX).plusMinutes(1);
+            this.elapsedTime = elapsedTime.plus(RESOURCE_STABILIZATION_TIMEOUT).plusMinutes(1);
             this.triggerOutdatedTasks();
         }
 
