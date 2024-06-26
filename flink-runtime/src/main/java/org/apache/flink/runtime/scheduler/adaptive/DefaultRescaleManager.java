@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +70,7 @@ public class DefaultRescaleManager implements RescaleManager {
 
     @VisibleForTesting final Duration maxTriggerDelay;
 
-    private State state;
+    @Nullable private State state;
 
     DefaultRescaleManager(
             Temporal initializationTime,
@@ -121,6 +122,12 @@ public class DefaultRescaleManager implements RescaleManager {
         transitionToState(new Idling(clock, this, null));
     }
 
+    @Nullable
+    @VisibleForTesting
+    State getState() {
+        return state;
+    }
+
     private void transitionToStabilizing(Temporal firstChangeEventTimestamp) {
         transitionToState(
                 new Stabilizing(
@@ -132,20 +139,24 @@ public class DefaultRescaleManager implements RescaleManager {
     }
 
     private void transitionToState(State newState) {
+        Preconditions.checkState(
+                this.state != null, "The rescaling operation was already triggered.");
         LOG.debug("Transitioning from {} to {}.", this.state, newState);
         this.state = newState;
     }
 
     private void transitionToRescale() {
         this.rescaleContext.rescale();
+        this.state = null;
     }
 
-    private abstract static class State {
+    @VisibleForTesting
+    abstract static class State {
 
         private final Supplier<Temporal> clock;
         private final DefaultRescaleManager context;
 
-        public State(Supplier<Temporal> clock, DefaultRescaleManager context) {
+        State(Supplier<Temporal> clock, DefaultRescaleManager context) {
             this.clock = clock;
             this.context = context;
         }
@@ -179,11 +190,12 @@ public class DefaultRescaleManager implements RescaleManager {
      * monitored and forwarded to the next state. {@link RescaleManager#onTrigger()} events will be
      * ignored.
      */
-    private static class Cooldown extends State {
+    @VisibleForTesting
+    static class Cooldown extends State {
 
         @Nullable private Temporal firstChangeEventTimestamp;
 
-        public Cooldown(
+        Cooldown(
                 Temporal timeOfLastRescale,
                 Supplier<Temporal> clock,
                 DefaultRescaleManager context,
@@ -215,9 +227,10 @@ public class DefaultRescaleManager implements RescaleManager {
      * first {@link RescaleManager#onChange()} event. {@link RescaleManager#onTrigger()} events will
      * be ignored.
      */
-    private static class Idling extends State {
+    @VisibleForTesting
+    static class Idling extends State {
 
-        public Idling(
+        Idling(
                 Supplier<Temporal> clock,
                 DefaultRescaleManager context,
                 @Nullable Duration resourceWaitTimeout) {
@@ -238,9 +251,10 @@ public class DefaultRescaleManager implements RescaleManager {
      * {@link State} that handles the resources stabilization. In this state, {@link
      * RescaleManager#onTrigger()} will initiate rescaling iff desired resources are met.
      */
-    private static class Stabilizing extends State {
+    @VisibleForTesting
+    static class Stabilizing extends State {
 
-        public Stabilizing(
+        Stabilizing(
                 Supplier<Temporal> clock,
                 DefaultRescaleManager context,
                 Duration resourceStabilizationTimeout,
@@ -266,9 +280,10 @@ public class DefaultRescaleManager implements RescaleManager {
      * event initiates rescaling iff sufficient resources are available; otherwise transitioning to
      * {@link Idling} will be performed.
      */
-    private static class Stabilized extends State {
+    @VisibleForTesting
+    static class Stabilized extends State {
 
-        public Stabilized(
+        Stabilized(
                 Supplier<Temporal> clock,
                 DefaultRescaleManager context,
                 Temporal firstChangeEventTimestamp,

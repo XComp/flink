@@ -21,6 +21,10 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptive.DefaultRescaleManager.Cooldown;
+import org.apache.flink.runtime.scheduler.adaptive.DefaultRescaleManager.Idling;
+import org.apache.flink.runtime.scheduler.adaptive.DefaultRescaleManager.Stabilized;
+import org.apache.flink.runtime.scheduler.adaptive.DefaultRescaleManager.Stabilizing;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
@@ -37,6 +41,7 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,37 +75,26 @@ class DefaultRescaleManagerTest {
     void triggerWithoutChangeEventNoopInCooldownPhase() {
         // the transition to idle state is expected to be scheduled
         triggerWithoutChangeEventNoop(
-                TestingRescaleManagerContext::createTestInstanceInCooldownPhase, true);
+                TestingRescaleManagerContext::createTestInstanceInCooldownPhase, Cooldown.class);
     }
 
     @Test
-    void triggerWithoutChangeEventNoopInSoftRescalingPhase() {
+    void triggerWithoutChangeEventNoopInIdlingPhase() {
         triggerWithoutChangeEventNoop(
-                TestingRescaleManagerContext::createTestInstanceInSoftRescalePhase, false);
-    }
-
-    @Test
-    void triggerWithoutChangeEventNoopInHardRescalingPhase() {
-        triggerWithoutChangeEventNoop(
-                TestingRescaleManagerContext::createTestInstanceInHardRescalePhase, false);
+                TestingRescaleManagerContext::createTestInstanceThatPassedCooldownPhase,
+                Idling.class);
     }
 
     private void triggerWithoutChangeEventNoop(
             Function<TestingRescaleManagerContext, DefaultRescaleManager> testInstanceCreator,
-            boolean expectedScheduledTasks) {
+            Class<? extends DefaultRescaleManager.State> expectedState) {
         final TestingRescaleManagerContext ctx =
                 TestingRescaleManagerContext.stableContext().withDesiredRescaling();
         final DefaultRescaleManager testInstance = testInstanceCreator.apply(ctx);
 
         testInstance.onTrigger();
 
-        assertThat(ctx.rescaleWasTriggered())
-                .as(
-                        "No rescaling should have been triggered due to the missing change event despite the fact that desired rescaling would be possible.")
-                .isFalse();
-        assertThat(ctx.additionalTasksWaiting())
-                .as("No tasks should be scheduled.")
-                .isEqualTo(expectedScheduledTasks);
+        assertStateWithoutRescale(ctx, testInstance, expectedState);
     }
 
     @Test
@@ -109,22 +103,22 @@ class DefaultRescaleManagerTest {
                 TestingRescaleManagerContext.stableContext().withDesiredRescaling();
         final DefaultRescaleManager testInstance = ctx.createTestInstanceInCooldownPhase();
 
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
+
         testInstance.onChange();
         testInstance.onTrigger();
 
-        assertThat(ctx.rescaleWasTriggered())
-                .as("Rescaling wasn't triggered, yet, because we're still in cooldown phase.")
-                .isFalse();
-        assertThat(ctx.additionalTasksWaiting()).isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
         ctx.transitionToInclusiveCooldownEnd();
 
-        assertThat(ctx.rescaleWasTriggered())
-                .as("Rescaling wasn't triggered, yet, because we're still in cooldown phase.")
-                .isFalse();
-        assertThat(ctx.additionalTasksWaiting()).isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
+
+        testInstance.onTrigger();
 
         ctx.passTime(Duration.ofMillis(1));
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
@@ -133,237 +127,239 @@ class DefaultRescaleManagerTest {
 
     @Test
     void testDesiredChangeEventDuringCooldown() {
-        final TestingRescaleManagerContext softScalePossibleCtx =
+        final TestingRescaleManagerContext ctx =
                 TestingRescaleManagerContext.stableContext().withDesiredRescaling();
-        final DefaultRescaleManager testInstance =
-                softScalePossibleCtx.createTestInstanceInCooldownPhase();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceInCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(softScalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
         testInstance.onTrigger();
 
-        assertIntermediateStateWithoutRescale(softScalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
-        softScalePossibleCtx.transitionIntoSoftScalingTimeframe();
+        ctx.transitionOutOfCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertFinalStateWithRescale(softScalePossibleCtx);
+        assertStateWithRescale(ctx, testInstance);
     }
 
     @Test
-    void testDesiredChangeEventInSoftRescalePhase() {
-        final TestingRescaleManagerContext desiredRescalePossibleCtx =
+    void testDesiredChangeEventInIdlingState() {
+        final TestingRescaleManagerContext ctx =
                 TestingRescaleManagerContext.stableContext().withDesiredRescaling();
-        final DefaultRescaleManager testInstance =
-                desiredRescalePossibleCtx.createTestInstanceInSoftRescalePhase();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceThatPassedCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(desiredRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertFinalStateWithRescale(desiredRescalePossibleCtx);
+        assertStateWithRescale(ctx, testInstance);
     }
 
     @Test
-    void testDesiredChangeEventInHardRescalePhase() {
-        final TestingRescaleManagerContext desiredRescalePossibleCtx =
-                TestingRescaleManagerContext.stableContext().withDesiredRescaling();
-        final DefaultRescaleManager testInstance =
-                desiredRescalePossibleCtx.createTestInstanceInHardRescalePhase();
+    void testDesiredChangeEventInStabilizedState() {
+        final TestingRescaleManagerContext ctx =
+                TestingRescaleManagerContext.stableContext().withSufficientRescaling();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceInStabilizedPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
+
+        ctx.withDesiredRescaling();
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(desiredRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
 
         testInstance.onTrigger();
 
-        assertFinalStateWithRescale(desiredRescalePossibleCtx);
+        assertStateWithRescale(ctx, testInstance);
     }
 
     @Test
     void testNoRescaleInCooldownPhase() {
-        final TestingRescaleManagerContext noRescalePossibleCtx =
-                TestingRescaleManagerContext.stableContext();
-        final DefaultRescaleManager testInstance =
-                noRescalePossibleCtx.createTestInstanceInCooldownPhase();
+        final TestingRescaleManagerContext ctx = TestingRescaleManagerContext.stableContext();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceInCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
         testInstance.onTrigger();
 
-        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
-        noRescalePossibleCtx.transitionIntoSoftScalingTimeframe();
+        ctx.transitionOutOfCooldownPhase();
 
-        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
-        noRescalePossibleCtx.transitionIntoHardScalingTimeframe();
+        ctx.passResourceStabilizationTimeout();
 
-        assertThat(noRescalePossibleCtx.rescaleWasTriggered())
-                .as("No rescaling should have happened even in the hard-rescaling phase.")
-                .isFalse();
-        assertThat(noRescalePossibleCtx.additionalTasksWaiting())
-                .as("No further tasks should have been waiting for execution.")
-                .isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
     }
 
     @Test
-    void testNoRescaleInSoftRescalePhase() {
-        final TestingRescaleManagerContext noRescalePossibleCtx =
-                TestingRescaleManagerContext.stableContext();
-        final DefaultRescaleManager testInstance =
-                noRescalePossibleCtx.createTestInstanceInSoftRescalePhase();
+    void testNoRescaleInStabilizingState() {
+        final TestingRescaleManagerContext ctx = TestingRescaleManagerContext.stableContext();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceThatPassedCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
-        noRescalePossibleCtx.transitionIntoHardScalingTimeframe();
+        ctx.passResourceStabilizationTimeout();
 
-        assertThat(noRescalePossibleCtx.rescaleWasTriggered())
-                .as("No rescaling should have happened even in the hard-rescaling phase.")
-                .isFalse();
-        assertThat(noRescalePossibleCtx.additionalTasksWaiting())
-                .as("No further tasks should have been waiting for execution.")
-                .isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
     }
 
     @Test
-    void testNoResaleInHardRescalePhase() {
-        final TestingRescaleManagerContext noRescalePossibleCtx =
-                TestingRescaleManagerContext.stableContext();
-        final DefaultRescaleManager testInstance =
-                noRescalePossibleCtx.createTestInstanceInHardRescalePhase();
+    void testNoResaleInStabilizedState() {
+        final TestingRescaleManagerContext ctx = TestingRescaleManagerContext.stableContext();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceInStabilizedPhase();
 
-        testInstance.onChange();
-
-        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
 
         testInstance.onTrigger();
 
-        assertThat(noRescalePossibleCtx.rescaleWasTriggered())
-                .as("No rescaling should have happened even in the hard-rescaling phase.")
-                .isFalse();
-        assertThat(noRescalePossibleCtx.additionalTasksWaiting())
-                .as("No further tasks should have been waiting for execution.")
-                .isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
     }
 
     @Test
-    void testSufficientChangeInCooldownPhase() {
-        final TestingRescaleManagerContext hardRescalePossibleCtx =
-                TestingRescaleManagerContext.stableContext().withSufficientRescaling();
-        final DefaultRescaleManager testInstance =
-                hardRescalePossibleCtx.createTestInstanceInCooldownPhase();
-
-        testInstance.onChange();
-
-        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
-
-        testInstance.onTrigger();
-
-        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
-
-        hardRescalePossibleCtx.transitionIntoSoftScalingTimeframe();
-
-        testInstance.onTrigger();
-
-        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
-
-        hardRescalePossibleCtx.transitionIntoHardScalingTimeframe();
-
-        testInstance.onTrigger();
-
-        assertFinalStateWithRescale(hardRescalePossibleCtx);
-    }
-
-    @Test
-    void testSufficientChangeInSoftRescalePhase() {
-        final TestingRescaleManagerContext hardRescalePossibleCtx =
-                TestingRescaleManagerContext.stableContext().withSufficientRescaling();
-        final DefaultRescaleManager testInstance =
-                hardRescalePossibleCtx.createTestInstanceInSoftRescalePhase();
-
-        testInstance.onChange();
-
-        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
-
-        testInstance.onTrigger();
-
-        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
-
-        hardRescalePossibleCtx.transitionIntoHardScalingTimeframe();
-
-        testInstance.onTrigger();
-
-        assertFinalStateWithRescale(hardRescalePossibleCtx);
-    }
-
-    @Test
-    void testSufficientChangeInCooldownWithSubsequentDesiredChangeInSoftRescalePhase() {
+    void testSufficientChangeInCooldownState() {
         final TestingRescaleManagerContext ctx =
                 TestingRescaleManagerContext.stableContext().withSufficientRescaling();
         final DefaultRescaleManager testInstance = ctx.createTestInstanceInCooldownPhase();
 
-        testInstance.onChange();
-
-        assertIntermediateStateWithoutRescale(ctx);
-
-        testInstance.onTrigger();
-
-        assertIntermediateStateWithoutRescale(ctx);
-
-        ctx.transitionIntoSoftScalingTimeframe();
-
-        ctx.withDesiredRescaling();
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
 
         testInstance.onTrigger();
 
-        assertThat(ctx.rescaleWasTriggered()).isTrue();
-        assertThat(ctx.numberOfTasksWaiting())
-                .as("There should be a task scheduled to transition to stabilized state.")
-                .isEqualTo(1);
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
+
+        ctx.transitionOutOfCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
+
+        ctx.passResourceStabilizationTimeout();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithRescale(ctx, testInstance);
     }
 
     @Test
-    void testSufficientChangeWithSubsequentDesiredChangeInSoftRescalePhase() {
+    void testSufficientChangeInIdlingPhase() {
         final TestingRescaleManagerContext ctx =
                 TestingRescaleManagerContext.stableContext().withSufficientRescaling();
-        final DefaultRescaleManager testInstance = ctx.createTestInstanceInSoftRescalePhase();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceThatPassedCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
-        assertThat(ctx.numberOfTasksWaiting())
-                .as(
-                        "There should be a task scheduled that allows transitioning into stabilized state.")
-                .isEqualTo(1);
+        ctx.passResourceStabilizationTimeout();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithRescale(ctx, testInstance);
+    }
+
+    @Test
+    void testSufficientChangeInCooldownWithSubsequentDesiredChangeInStabilizingState() {
+        final TestingRescaleManagerContext ctx =
+                TestingRescaleManagerContext.stableContext().withSufficientRescaling();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceInCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
+
+        testInstance.onChange();
+
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithoutRescale(ctx, testInstance, Cooldown.class);
+
+        ctx.transitionOutOfCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         ctx.withDesiredRescaling();
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithRescale(ctx, testInstance);
+    }
+
+    @Test
+    void testSufficientChangeWithSubsequentDesiredChangeInStabilizingState() {
+        final TestingRescaleManagerContext ctx =
+                TestingRescaleManagerContext.stableContext().withSufficientRescaling();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceThatPassedCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
+
+        testInstance.onChange();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
+
+        testInstance.onTrigger();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
+
+        ctx.withDesiredRescaling();
+
+        testInstance.onChange();
+
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
@@ -372,111 +368,88 @@ class DefaultRescaleManagerTest {
 
     @Test
     void
-            testRevokedSufficientChangeInSoftRescalePhaseWithSubsequentSufficientChangeInHardRescalingPhase() {
+            testRevokedSufficientChangeInStabilizingStateWithSubsequentSufficientChangeInStabilizedState() {
         final TestingRescaleManagerContext ctx =
                 TestingRescaleManagerContext.stableContext().withSufficientRescaling();
-        final DefaultRescaleManager testInstance = ctx.createTestInstanceInSoftRescalePhase();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceThatPassedCooldownPhase();
+
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertIntermediateStateWithoutRescale(ctx);
-
-        assertThat(ctx.numberOfTasksWaiting())
-                .as(
-                        "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(1);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         ctx.revertAnyParallelismImprovements();
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
-        assertThat(ctx.numberOfTasksWaiting())
-                .as(
-                        "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(1);
+        ctx.passResourceStabilizationTimeout();
 
-        ctx.transitionIntoHardScalingTimeframe();
-
-        assertThat(ctx.rescaleWasTriggered())
-                .as(
-                        "No rescaling should have been triggered because of the previous revert of the additional resources.")
-                .isFalse();
-        assertThat(ctx.additionalTasksWaiting())
-                .as(
-                        "The transition to hard-rescaling should have happened without any additional tasks in waiting state.")
-                .isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
 
         ctx.withSufficientRescaling();
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
 
         testInstance.onTrigger();
 
-        assertFinalStateWithRescale(ctx);
+        assertStateWithRescale(ctx, testInstance);
     }
 
     @Test
-    void testRevokedChangeInHardRescalingPhaseResultsInTransitioningToIdleState() {
+    void testRevokedChangeInStabilizedStateResultsInTransitioningToIdleState() {
         final TestingRescaleManagerContext ctx = TestingRescaleManagerContext.stableContext();
-        final DefaultRescaleManager testInstance = ctx.createTestInstanceInHardRescalePhase();
+        final DefaultRescaleManager testInstance = ctx.createTestInstanceInStabilizedPhase();
 
-        testInstance.onChange();
-
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilized.class);
 
         testInstance.onTrigger();
 
-        assertThat(ctx.rescaleWasTriggered()).isFalse();
-        assertThat(ctx.additionalTasksWaiting()).isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Idling.class);
 
         ctx.withSufficientRescaling();
 
         testInstance.onChange();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertThat(ctx.rescaleWasTriggered()).isFalse();
-        assertThat(ctx.additionalTasksWaiting()).isTrue();
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         ctx.withDesiredRescaling();
 
-        assertIntermediateStateWithoutRescale(ctx);
+        assertStateWithoutRescale(ctx, testInstance, Stabilizing.class);
 
         testInstance.onTrigger();
 
-        assertFinalStateWithRescale(ctx);
+        assertStateWithRescale(ctx, testInstance);
     }
 
-    private static void assertIntermediateStateWithoutRescale(TestingRescaleManagerContext ctx) {
-        assertThat(ctx.rescaleWasTriggered())
-                .as("The rescale should not have been triggered, yet.")
-                .isFalse();
-        assertThat(ctx.additionalTasksWaiting())
-                .as("There should be still tasks being scheduled.")
-                .isTrue();
+    private static void assertStateWithoutRescale(
+            TestingRescaleManagerContext ctx,
+            DefaultRescaleManager testInstance,
+            Class<? extends DefaultRescaleManager.State> expectedState) {
+        assertThat(ctx.rescaleWasTriggered()).isFalse();
+        assertThat(testInstance.getState()).isInstanceOf(expectedState);
     }
 
-    private static void assertFinalStateWithRescale(TestingRescaleManagerContext ctx) {
-        assertThat(ctx.rescaleWasTriggered())
-                .as("The rescale should have been triggered already.")
-                .isTrue();
-        assertThat(ctx.additionalTasksWaiting())
-                .as("All scheduled tasks should have been executed.")
-                .isTrue();
+    private static void assertStateWithRescale(
+            TestingRescaleManagerContext ctx, DefaultRescaleManager testInstance) {
+        assertThat(ctx.rescaleWasTriggered()).isTrue();
+        assertThat(testInstance.getState()).isNull();
     }
 
     /**
@@ -585,30 +558,35 @@ class DefaultRescaleManagerTest {
          * time where the instance is in cooldown phase.
          */
         public DefaultRescaleManager createTestInstanceInCooldownPhase() {
-            return createTestInstance(this::transitionIntoCooldownTimeframe);
+            return createTestInstance(
+                    ignoredRescaleManager -> this.transitionIntoCooldownTimeframe());
         }
 
         /**
          * Creates the {@code DefaultRescaleManager} test instance and transitions into a period in
          * time where the instance is in soft-rescaling phase.
          */
-        public DefaultRescaleManager createTestInstanceInSoftRescalePhase() {
-            return createTestInstance(this::transitionIntoSoftScalingTimeframe);
+        public DefaultRescaleManager createTestInstanceThatPassedCooldownPhase() {
+            return createTestInstance(ignoredResaleManager -> this.transitionOutOfCooldownPhase());
         }
 
         /**
          * Creates the {@code DefaultRescaleManager} test instance and transitions into a period in
          * time where the instance is in hard-rescaling phase.
          */
-        public DefaultRescaleManager createTestInstanceInHardRescalePhase() {
-            return createTestInstance(this::transitionIntoHardScalingTimeframe);
+        public DefaultRescaleManager createTestInstanceInStabilizedPhase() {
+            return createTestInstance(
+                    rescaleManager -> {
+                        rescaleManager.onChange();
+                        passResourceStabilizationTimeout();
+                    });
         }
 
         /**
          * Initializes the test instance and sets the context's elapsed time based on the passed
          * callback.
          */
-        private DefaultRescaleManager createTestInstance(Runnable timeTransitioning) {
+        private DefaultRescaleManager createTestInstance(Consumer<DefaultRescaleManager> callback) {
             final DefaultRescaleManager testInstance =
                     new DefaultRescaleManager(
                             initializationTime,
@@ -637,7 +615,8 @@ class DefaultRescaleManagerTest {
                         }
                     };
 
-            timeTransitioning.run();
+            callback.accept(testInstance);
+
             return testInstance;
         }
 
@@ -645,12 +624,8 @@ class DefaultRescaleManagerTest {
         // Time-adjustment functionality
         // ///////////////////////////////////////////////
 
-        /**
-         * Transitions the context's time to a moment that falls into the test instance's cooldown
-         * phase.
-         */
         public void transitionIntoCooldownTimeframe() {
-            this.elapsedTime = COOLDOWN_TIMEOUT.dividedBy(2);
+            setElapsedTime(COOLDOWN_TIMEOUT.dividedBy(2));
             this.triggerOutdatedTasks();
         }
 
@@ -670,31 +645,13 @@ class DefaultRescaleManagerTest {
             this.triggerOutdatedTasks();
         }
 
-        /**
-         * Transitions the context's time to a moment that falls into the test instance's
-         * soft-scaling phase.
-         */
-        public void transitionIntoSoftScalingTimeframe() {
-            // the state transition is scheduled based on the current event's time rather than the
-            // initializationTime
-            this.elapsedTime = elapsedTime.plus(COOLDOWN_TIMEOUT);
-
-            // make sure that we're still below the scalingIntervalMax
-            this.elapsedTime =
-                    elapsedTime.plus(
-                            RESOURCE_STABILIZATION_TIMEOUT.minus(elapsedTime).dividedBy(2));
-            this.triggerOutdatedTasks();
+        public void transitionOutOfCooldownPhase() {
+            this.setElapsedTime(COOLDOWN_TIMEOUT.plusMillis(1));
         }
 
-        /**
-         * Transitions the context's time to a moment that falls into the test instance's
-         * hard-scaling phase.
-         */
-        public void transitionIntoHardScalingTimeframe() {
-            // the state transition is scheduled based on the current event's time rather than the
-            // initializationTime
-            this.elapsedTime = elapsedTime.plus(RESOURCE_STABILIZATION_TIMEOUT).plusMinutes(1);
-            this.triggerOutdatedTasks();
+        public void passResourceStabilizationTimeout() {
+            // resource stabilization is based on the current time
+            this.passTime(RESOURCE_STABILIZATION_TIMEOUT.plusMillis(1));
         }
 
         private void triggerOutdatedTasks() {
@@ -715,14 +672,6 @@ class DefaultRescaleManagerTest {
 
         public boolean rescaleWasTriggered() {
             return rescaleTriggered.get();
-        }
-
-        public int numberOfTasksWaiting() {
-            return scheduledTasks.size();
-        }
-
-        public boolean additionalTasksWaiting() {
-            return !scheduledTasks.isEmpty();
         }
     }
 }
