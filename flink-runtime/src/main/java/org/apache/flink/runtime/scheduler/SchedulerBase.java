@@ -225,7 +225,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         final CheckpointStatsTracker checkpointStatsTracker =
                 SchedulerUtils.createCheckpointStatsTrackerIfCheckpointingIsEnabled(
-                        jobGraph.getCheckpointingSettings(),
+                        jobGraph,
                         () ->
                                 new DefaultCheckpointStatsTracker(
                                         jobMasterConfiguration.get(
