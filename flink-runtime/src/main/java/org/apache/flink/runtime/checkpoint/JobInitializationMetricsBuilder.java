@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.checkpoint.JobInitializationMetrics.SumMaxDuration;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import org.slf4j.Logger;
@@ -46,6 +47,17 @@ class JobInitializationMetricsBuilder {
     private Optional<CheckpointProperties> checkpointProperties = Optional.empty();
     private Optional<String> externalPath = Optional.empty();
 
+    /**
+     * The {@code JobInitializationMetricsBuilder} handles the initialization metrics for deployed
+     * {@link Execution Executions}. Building the final {@link JobInitializationMetrics} will be
+     * only possible if all the subtasks reported their {@link SubTaskInitializationMetrics} back.
+     *
+     * @param toInitialize The {@link ExecutionAttemptID} of the subtasks that are about to be
+     *     deployed.
+     * @param startTs The time the initialization was started.
+     * @see #isComplete()
+     * @see #reportInitializationMetrics(ExecutionAttemptID, SubTaskInitializationMetrics)
+     */
     JobInitializationMetricsBuilder(Set<ExecutionAttemptID> toInitialize, long startTs) {
         this.toInitialize = new HashSet<>(toInitialize);
         this.startTs = startTs;
@@ -119,6 +131,10 @@ class JobInitializationMetricsBuilder {
         }
     }
 
+    /**
+     * Reports the {@link SubTaskInitializationMetrics} for a currently deployed subtask based on
+     * the provided {@link ExecutionAttemptID}.
+     */
     public void reportInitializationMetrics(
             ExecutionAttemptID executionAttemptId,
             SubTaskInitializationMetrics initializationMetrics) {
