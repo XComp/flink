@@ -106,7 +106,16 @@ public interface CheckpointStatsTracker {
 
     void reportFailedCheckpoint(FailedCheckpointStats failed);
 
+    /**
+     * Callback when a checkpoint failure without in progress checkpoint. For example, it should be
+     * callback when triggering checkpoint failure before creating PendingCheckpoint.
+     */
     void reportFailedCheckpointsWithoutInProgress();
 
+    /**
+     * Creates a new snapshot of the available stats.
+     *
+     * @return The latest statistics snapshot.
+     */
     CheckpointStatsSnapshot createSnapshot();
 }

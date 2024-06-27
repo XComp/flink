@@ -111,11 +111,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         registerMetrics(metricGroup);
     }
 
-    /**
-     * Creates a new snapshot of the available stats.
-     *
-     * @return The latest statistics snapshot.
-     */
+    @Override
     public CheckpointStatsSnapshot createSnapshot() {
         CheckpointStatsSnapshot snapshot = latestSnapshot;
 
@@ -253,10 +249,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         }
     }
 
-    /**
-     * Callback when a checkpoint failure without in progress checkpoint. For example, it should be
-     * callback when triggering checkpoint failure before creating PendingCheckpoint.
-     */
+    @Override
     public void reportFailedCheckpointsWithoutInProgress() {
         statsReadWriteLock.lock();
         try {
