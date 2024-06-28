@@ -2123,7 +2123,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testScalingIntervalConfigurationIsRespected() throws ConfigurationException {
+    void testScalingIntervalConfigurationIsRespected() throws ConfigurationException {
         final Duration scalingIntervalMin = Duration.ofMillis(1337);
         final Duration scalingIntervalMax = Duration.ofMillis(7331);
         final Configuration configuration = createConfigurationWithNoTimeouts();
