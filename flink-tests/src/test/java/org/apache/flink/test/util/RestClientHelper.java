@@ -37,7 +37,7 @@ public class RestClientHelper {
         return delegate;
     }
 
-    public int getNumberTasksByState(JobID jobId, ExecutionState state) {
+    public int getNumberOfTasksByState(JobID jobId, ExecutionState state) {
         final JobDetailsInfo jobDetailsInfo = delegate.getJobDetails(jobId).join();
         return jobDetailsInfo.getJobVertexInfos().stream()
                 .map(JobDetailsInfo.JobVertexDetailsInfo::getTasksPerState)
@@ -47,7 +47,7 @@ public class RestClientHelper {
     }
 
     public int getNumberOfRunningTasks(JobID jobId) {
-        return getNumberTasksByState(jobId, ExecutionState.RUNNING);
+        return getNumberOfTasksByState(jobId, ExecutionState.RUNNING);
     }
 
     public void waitForRunningTasks(JobID jobId, int expectedNumberOfRunningTasks)
