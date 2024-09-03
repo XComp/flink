@@ -107,7 +107,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @return
    *   associated execution environment
    */
-  def getExecutionEnvironment: ExecutionEnvironment =
+  def getExecutionEnvironmentChangedName: ExecutionEnvironment =
     new ExecutionEnvironment(set.getExecutionEnvironmentChangedName)
 
   /** Returns the underlying Java DataSet. */
@@ -707,7 +707,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def count(): Long = {
     val id = new AbstractID().toString
     javaSet.output(new CountHelper[T](id))
-    val res = getExecutionEnvironment.execute()
+    val res = getExecutionEnvironmentChangedName.execute()
     res.getAccumulatorResult[Long](id)
   }
 
@@ -724,11 +724,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def collect(): Seq[T] = {
     val id = new AbstractID().toString
     val serializer =
-      getType().createSerializer(getExecutionEnvironment.getConfig.getSerializerConfig)
+      getType().createSerializer(getExecutionEnvironmentChangedName.getConfig.getSerializerConfig)
 
     javaSet.output(new Utils.CollectHelper[T](id, serializer))
 
-    val res = getExecutionEnvironment.execute()
+    val res = getExecutionEnvironmentChangedName.execute()
 
     val accResult: java.util.ArrayList[Array[Byte]] = res.getAccumulatorResult(id)
 
