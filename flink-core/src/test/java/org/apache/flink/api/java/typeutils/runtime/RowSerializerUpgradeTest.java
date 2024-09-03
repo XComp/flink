@@ -126,7 +126,7 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
         @Override
         public Condition<TypeSerializerSchemaCompatibility<Row>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            if (version.isNewerVersionThan(FlinkVersion.v1_10)) {
+            if (version.isNewerVersionThanChangedName(FlinkVersion.v1_10)) {
                 return TypeSerializerConditions.isCompatibleAsIs();
             }
             return TypeSerializerConditions.isCompatibleAfterMigration();

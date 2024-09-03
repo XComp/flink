@@ -71,7 +71,7 @@ public enum FlinkVersion {
         return versionStr;
     }
 
-    public boolean isNewerVersionThan(FlinkVersion otherVersion) {
+    public boolean isNewerVersionThanChangedName(FlinkVersion otherVersion) {
         return this.ordinal() > otherVersion.ordinal();
     }
 

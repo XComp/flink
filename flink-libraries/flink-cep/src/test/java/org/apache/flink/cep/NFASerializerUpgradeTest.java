@@ -367,7 +367,7 @@ class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Obj
         @Override
         public Condition<TypeSerializerSchemaCompatibility<NFAState>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            if (version.isNewerVersionThan(FlinkVersion.v1_15)) {
+            if (version.isNewerVersionThanChangedName(FlinkVersion.v1_15)) {
                 return TypeSerializerConditions.isCompatibleAsIs();
             }
             return TypeSerializerConditions.isCompatibleAfterMigration();

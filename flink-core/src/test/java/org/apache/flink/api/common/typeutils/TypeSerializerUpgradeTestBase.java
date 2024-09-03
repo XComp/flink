@@ -528,7 +528,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             DataOutputView out, TypeSerializer<T> serializer, FlinkVersion flinkVersion)
             throws IOException {
 
-        if (flinkVersion.isNewerVersionThan(FlinkVersion.v1_6)) {
+        if (flinkVersion.isNewerVersionThanChangedName(FlinkVersion.v1_6)) {
             writeSerializerSnapshotCurrentFormat(out, serializer);
         } else {
             throw new UnsupportedOperationException(
@@ -547,7 +547,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             DataInputView in, FlinkVersion flinkVersion) throws IOException {
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        checkState(flinkVersion.isNewerVersionThan(FlinkVersion.v1_6));
+        checkState(flinkVersion.isNewerVersionThanChangedName(FlinkVersion.v1_6));
         return readSerializerSnapshotCurrentFormat(in, classLoader);
     }
 
