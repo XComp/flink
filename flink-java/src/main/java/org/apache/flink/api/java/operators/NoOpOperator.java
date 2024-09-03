@@ -34,7 +34,7 @@ public class NoOpOperator<IN> extends DataSet<IN> {
     private DataSet<IN> input;
 
     public NoOpOperator(DataSet<IN> input, TypeInformation<IN> resultType) {
-        super(input.getExecutionEnvironment(), resultType);
+        super(input.getExecutionEnvironmentChangedName(), resultType);
 
         this.input = input;
     }

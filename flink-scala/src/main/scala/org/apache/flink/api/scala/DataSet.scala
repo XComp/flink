@@ -108,7 +108,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *   associated execution environment
    */
   def getExecutionEnvironment: ExecutionEnvironment =
-    new ExecutionEnvironment(set.getExecutionEnvironment)
+    new ExecutionEnvironment(set.getExecutionEnvironmentChangedName)
 
   /** Returns the underlying Java DataSet. */
   private[flink] def javaSet: JavaDataSet[T] = set
@@ -128,11 +128,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *   if <tt>checkSerializable</tt> is set but <tt>f</tt> is not serializable
    */
   private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    if (set.getExecutionEnvironment.getConfig.isClosureCleanerEnabled) {
+    if (set.getExecutionEnvironmentChangedName.getConfig.isClosureCleanerEnabled) {
       ClosureCleaner.clean(
         f,
         checkSerializable,
-        set.getExecutionEnvironment.getConfig.getClosureCleanerLevel)
+        set.getExecutionEnvironmentChangedName.getConfig.getClosureCleanerLevel)
     }
     ClosureCleaner.ensureSerializable(f)
     f
@@ -1358,7 +1358,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def iterate(maxIterations: Int)(stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
     val iterativeSet =
       new IterativeDataSet[T](
-        javaSet.getExecutionEnvironment,
+        javaSet.getExecutionEnvironmentChangedName,
         javaSet.getType,
         javaSet,
         maxIterations)
@@ -1391,7 +1391,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       stepFunction: (DataSet[T]) => (DataSet[T], DataSet[_])): DataSet[T] = {
     val iterativeSet =
       new IterativeDataSet[T](
-        javaSet.getExecutionEnvironment,
+        javaSet.getExecutionEnvironmentChangedName,
         javaSet.getType,
         javaSet,
         maxIterations)
@@ -1414,7 +1414,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val key = new ExpressionKeys[T](keyFields, javaSet.getType)
 
     val iterativeSet = new DeltaIteration[T, R](
-      javaSet.getExecutionEnvironment,
+      javaSet.getExecutionEnvironmentChangedName,
       javaSet.getType,
       javaSet,
       workset.javaSet,
@@ -1444,7 +1444,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val key = new ExpressionKeys[T](keyFields, javaSet.getType)
 
     val iterativeSet = new DeltaIteration[T, R](
-      javaSet.getExecutionEnvironment,
+      javaSet.getExecutionEnvironmentChangedName,
       javaSet.getType,
       javaSet,
       workset.javaSet,
@@ -1472,7 +1472,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
     val key = new ExpressionKeys[T](keyFields, javaSet.getType)
     val iterativeSet = new DeltaIteration[T, R](
-      javaSet.getExecutionEnvironment,
+      javaSet.getExecutionEnvironmentChangedName,
       javaSet.getType,
       javaSet,
       workset.javaSet,
@@ -1502,7 +1502,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
     val key = new ExpressionKeys[T](keyFields, javaSet.getType)
     val iterativeSet = new DeltaIteration[T, R](
-      javaSet.getExecutionEnvironment,
+      javaSet.getExecutionEnvironmentChangedName,
       javaSet.getType,
       javaSet,
       workset.javaSet,

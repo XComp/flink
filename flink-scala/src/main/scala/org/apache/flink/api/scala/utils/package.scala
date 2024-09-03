@@ -209,7 +209,7 @@ package object utils {
     def checksumHashCode(): ChecksumHashCode = {
       val id = new AbstractID().toString
       self.javaSet.output(new Utils.ChecksumHashCodeHelper[T](id))
-      val res = self.javaSet.getExecutionEnvironment.execute()
+      val res = self.javaSet.getExecutionEnvironmentChangedName.execute()
       res.getAccumulatorResult[ChecksumHashCode](id)
     }
   }

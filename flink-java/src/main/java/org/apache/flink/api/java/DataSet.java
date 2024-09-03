@@ -140,7 +140,7 @@ public abstract class DataSet<T> {
      * @return The ExecutionEnvironment in which this DataSet is registered.
      * @see ExecutionEnvironment
      */
-    public ExecutionEnvironment getExecutionEnvironment() {
+    public ExecutionEnvironment getExecutionEnvironmentChangedName() {
         return this.context;
     }
 
@@ -191,9 +191,11 @@ public abstract class DataSet<T> {
     }
 
     public <F> F clean(F f) {
-        if (getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
+        if (getExecutionEnvironmentChangedName().getConfig().isClosureCleanerEnabled()) {
             ClosureCleaner.clean(
-                    f, getExecutionEnvironment().getConfig().getClosureCleanerLevel(), true);
+                    f,
+                    getExecutionEnvironmentChangedName().getConfig().getClosureCleanerLevel(),
+                    true);
         } else {
             ClosureCleaner.ensureSerializable(f);
         }
@@ -404,7 +406,7 @@ public abstract class DataSet<T> {
 
         output(new Utils.CountHelper<T>(id)).name("count()");
 
-        JobExecutionResult res = getExecutionEnvironment().execute();
+        JobExecutionResult res = getExecutionEnvironmentChangedName().execute();
         return res.<Long>getAccumulatorResult(id);
     }
 
@@ -419,10 +421,12 @@ public abstract class DataSet<T> {
         final TypeSerializer<T> serializer =
                 getType()
                         .createSerializer(
-                                getExecutionEnvironment().getConfig().getSerializerConfig());
+                                getExecutionEnvironmentChangedName()
+                                        .getConfig()
+                                        .getSerializerConfig());
 
         this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
-        JobExecutionResult res = getExecutionEnvironment().execute();
+        JobExecutionResult res = getExecutionEnvironmentChangedName().execute();
 
         ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
         if (accResult != null) {
@@ -1187,7 +1191,8 @@ public abstract class DataSet<T> {
      * @see org.apache.flink.api.java.operators.IterativeDataSet
      */
     public IterativeDataSet<T> iterate(int maxIterations) {
-        return new IterativeDataSet<>(getExecutionEnvironment(), getType(), this, maxIterations);
+        return new IterativeDataSet<>(
+                getExecutionEnvironmentChangedName(), getType(), this, maxIterations);
     }
 
     /**
@@ -1246,7 +1251,12 @@ public abstract class DataSet<T> {
 
         Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<>(keyPositions, getType());
         return new DeltaIteration<>(
-                getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
+                getExecutionEnvironmentChangedName(),
+                getType(),
+                this,
+                workset,
+                keys,
+                maxIterations);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1895,7 +1905,8 @@ public abstract class DataSet<T> {
     // --------------------------------------------------------------------------------------------
 
     protected static void checkSameExecutionContext(DataSet<?> set1, DataSet<?> set2) {
-        if (set1.getExecutionEnvironment() != set2.getExecutionEnvironment()) {
+        if (set1.getExecutionEnvironmentChangedName()
+                != set2.getExecutionEnvironmentChangedName()) {
             throw new IllegalArgumentException("The two inputs have different execution contexts.");
         }
     }

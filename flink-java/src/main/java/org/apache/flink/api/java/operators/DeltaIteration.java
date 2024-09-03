@@ -106,7 +106,7 @@ public class DeltaIteration<ST, WT> {
      */
     public DataSet<ST> closeWith(DataSet<ST> solutionSetDelta, DataSet<WT> newWorkset) {
         return new DeltaIterationResultSet<ST, WT>(
-                initialSolutionSet.getExecutionEnvironment(),
+                initialSolutionSet.getExecutionEnvironmentChangedName(),
                 initialSolutionSet.getType(),
                 initialWorkset.getType(),
                 this,

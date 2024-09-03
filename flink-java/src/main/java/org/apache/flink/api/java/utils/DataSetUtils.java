@@ -437,7 +437,7 @@ public final class DataSetUtils {
 
         input.output(new Utils.ChecksumHashCodeHelper<T>(id)).name("ChecksumHashCode");
 
-        JobExecutionResult res = input.getExecutionEnvironment().execute();
+        JobExecutionResult res = input.getExecutionEnvironmentChangedName().execute();
         return res.<Utils.ChecksumHashCode>getAccumulatorResult(id);
     }
 

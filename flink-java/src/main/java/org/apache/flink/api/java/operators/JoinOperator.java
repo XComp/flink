@@ -856,7 +856,7 @@ public abstract class JoinOperator<I1, I2, OUT>
                             isFromFirst,
                             returnType
                                     .createSerializer(
-                                            input1.getExecutionEnvironment()
+                                            input1.getExecutionEnvironmentChangedName()
                                                     .getConfig()
                                                     .getSerializerConfig())
                                     .createInstance()),
@@ -889,7 +889,7 @@ public abstract class JoinOperator<I1, I2, OUT>
                             isFromFirst,
                             returnType
                                     .createSerializer(
-                                            input1.getExecutionEnvironment()
+                                            input1.getExecutionEnvironmentChangedName()
                                                     .getConfig()
                                                     .getSerializerConfig())
                                     .createInstance()),

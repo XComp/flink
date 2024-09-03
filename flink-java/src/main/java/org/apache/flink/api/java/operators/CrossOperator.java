@@ -294,7 +294,7 @@ public class CrossOperator<I1, I2, OUT>
                             isFromFirst,
                             returnType
                                     .createSerializer(
-                                            input1.getExecutionEnvironment()
+                                            input1.getExecutionEnvironmentChangedName()
                                                     .getConfig()
                                                     .getSerializerConfig())
                                     .createInstance()),
@@ -321,7 +321,7 @@ public class CrossOperator<I1, I2, OUT>
                             isFromFirst,
                             returnType
                                     .createSerializer(
-                                            input1.getExecutionEnvironment()
+                                            input1.getExecutionEnvironmentChangedName()
                                                     .getConfig()
                                                     .getSerializerConfig())
                                     .createInstance()),
