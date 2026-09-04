@@ -38,12 +38,15 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.highavailability.JobResultStoreContractTest.DUMMY_JOB_RESULT_ENTRY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the internal {@link FileSystemJobResultStore} mechanisms. */
 @ExtendWith(TestLoggerExtension.class)
@@ -266,6 +269,52 @@ public class FileSystemJobResultStoreFileOperationsTest {
         assertThat(deserializedJobResult)
                 .extracting(JobResult::getAccumulatorResults)
                 .isEqualTo(DUMMY_JOB_RESULT_ENTRY.getJobResult().getAccumulatorResults());
+    }
+
+    @Test
+    public void testGetDirtyResultsWithCorruptedEntryAndIsolationEnabledQuarantinesFile()
+            throws Exception {
+        fileSystemJobResultStore =
+                new FileSystemJobResultStore(
+                        basePath.getFileSystem(), basePath, false, manuallyTriggeredExecutor, true);
+
+        final JobID jobId = new JobID();
+        final File corruptedDirtyFile = writeCorruptedDirtyFile(jobId);
+
+        // the corrupted entry is skipped entirely -- its terminal status and application can't
+        // be recovered, and this codebase requires every dirty JobResult to have both, so no
+        // placeholder is synthesized for it
+        assertThat(fileSystemJobResultStore.getDirtyResults()).isEmpty();
+
+        assertThat(corruptedDirtyFile).doesNotExist();
+        assertThat(
+                        new File(
+                                temporaryFolder,
+                                corruptedDirtyFile.getName()
+                                        + FileSystemJobResultStore.QUARANTINED_FILE_SUFFIX))
+                .exists();
+
+        // a subsequent recovery attempt no longer trips over the quarantined file
+        assertThat(fileSystemJobResultStore.getDirtyResults()).isEmpty();
+    }
+
+    @Test
+    public void testGetDirtyResultsWithCorruptedEntryAndIsolationDisabledFailsFast()
+            throws Exception {
+        final JobID jobId = new JobID();
+        writeCorruptedDirtyFile(jobId);
+
+        assertThatThrownBy(() -> fileSystemJobResultStore.getDirtyResults())
+                .isInstanceOf(IOException.class);
+    }
+
+    private File writeCorruptedDirtyFile(JobID jobId) throws IOException {
+        final File corruptedDirtyFile =
+                new File(
+                        temporaryFolder,
+                        jobId.toString() + FileSystemJobResultStore.DIRTY_FILE_EXTENSION);
+        Files.write(corruptedDirtyFile.toPath(), "not valid json".getBytes(StandardCharsets.UTF_8));
+        return corruptedDirtyFile;
     }
 
     private List<JobID> getCleanResultIdsFromFileSystem() throws IOException {

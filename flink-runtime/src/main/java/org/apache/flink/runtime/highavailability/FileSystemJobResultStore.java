@@ -20,6 +20,7 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileStatus;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
@@ -62,6 +64,12 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @VisibleForTesting static final String FILE_EXTENSION = ".json";
     @VisibleForTesting static final String DIRTY_FILE_EXTENSION = "_DIRTY" + FILE_EXTENSION;
+
+    /**
+     * Suffix appended to a dirty result file that could not be read/parsed so that it is moved out
+     * of the way and no longer matches {@link #hasValidDirtyJobResultStoreEntryExtension(String)}.
+     */
+    @VisibleForTesting static final String QUARANTINED_FILE_SUFFIX = ".corrupted";
 
     @VisibleForTesting
     public static boolean hasValidDirtyJobResultStoreEntryExtension(String filename) {
@@ -83,13 +91,26 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     private final boolean deleteOnCommit;
 
+    private final boolean jobErrorIsolationEnabled;
+
     @VisibleForTesting
     FileSystemJobResultStore(
             FileSystem fileSystem, Path basePath, boolean deleteOnCommit, Executor ioExecutor) {
+        this(fileSystem, basePath, deleteOnCommit, ioExecutor, false);
+    }
+
+    @VisibleForTesting
+    FileSystemJobResultStore(
+            FileSystem fileSystem,
+            Path basePath,
+            boolean deleteOnCommit,
+            Executor ioExecutor,
+            boolean jobErrorIsolationEnabled) {
         super(ioExecutor);
         this.fileSystem = fileSystem;
         this.basePath = basePath;
         this.deleteOnCommit = deleteOnCommit;
+        this.jobErrorIsolationEnabled = jobErrorIsolationEnabled;
     }
 
     public static FileSystemJobResultStore fromConfiguration(
@@ -109,7 +130,11 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
         boolean deleteOnCommit = config.get(JobResultStoreOptions.DELETE_ON_COMMIT);
 
         return new FileSystemJobResultStore(
-                basePath.getFileSystem(), basePath, deleteOnCommit, ioExecutor);
+                basePath.getFileSystem(),
+                basePath,
+                deleteOnCommit,
+                ioExecutor,
+                config.get(ClusterOptions.JOB_ERROR_ISOLATION_ENABLED));
     }
 
     private void createBasePathIfNeeded() throws IOException {
@@ -208,14 +233,63 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
         for (FileStatus s : statuses) {
             if (!s.isDir()) {
                 if (hasValidDirtyJobResultStoreEntryExtension(s.getPath().getName())) {
-                    JsonJobResultEntry jre =
-                            mapper.readValue(
-                                    fileSystem.open(s.getPath()), JsonJobResultEntry.class);
-                    dirtyResults.add(jre.getJobResult());
+                    readDirtyResult(s.getPath()).ifPresent(dirtyResults::add);
                 }
             }
         }
         return dirtyResults;
+    }
+
+    /**
+     * Reads and parses a single dirty result file. If it cannot be read/parsed and {@link
+     * ClusterOptions#JOB_ERROR_ISOLATION_ENABLED} is enabled, the file is quarantined and {@link
+     * Optional#empty()} is returned instead of propagating the failure: neither its terminal status
+     * nor its application can be recovered from an unreadable file, and this codebase requires
+     * every dirty {@link JobResult} to have both, so no placeholder is synthesized for it.
+     */
+    private Optional<JobResult> readDirtyResult(Path path) throws IOException {
+        try {
+            final JsonJobResultEntry jre =
+                    mapper.readValue(fileSystem.open(path), JsonJobResultEntry.class);
+            return Optional.of(jre.getJobResult());
+        } catch (IOException e) {
+            if (!jobErrorIsolationEnabled) {
+                throw e;
+            }
+            quarantineUnreadableDirtyResult(path, e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Moves an unreadable dirty result file aside so that it stops being picked up by future
+     * recovery attempts, leaving it for manual inspection/cleanup.
+     */
+    private void quarantineUnreadableDirtyResult(Path path, IOException cause) {
+        final Path quarantinedPath = constructQuarantinedPath(path);
+
+        LOG.error(
+                "Could not read the dirty job result entry {}. Its terminal status and "
+                        + "application cannot be determined, so it cannot be safely recovered. "
+                        + "Moving the entry to {} for manual inspection/cleanup and skipping it "
+                        + "for this and future recovery attempts.",
+                path,
+                quarantinedPath,
+                cause);
+        try {
+            fileSystem.rename(path, quarantinedPath);
+        } catch (IOException renameFailure) {
+            LOG.warn(
+                    "Could not move the unreadable job result entry {} to {}; it will be "
+                            + "retried on the next recovery attempt.",
+                    path,
+                    quarantinedPath,
+                    renameFailure);
+        }
+    }
+
+    private Path constructQuarantinedPath(Path originalPath) {
+        return constructEntryPath(originalPath.getName() + QUARANTINED_FILE_SUFFIX);
     }
 
     /**
